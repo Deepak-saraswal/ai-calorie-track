@@ -1,18 +1,26 @@
 import { useAuth, useUser } from "@clerk/expo";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import { Pressable, SafeAreaView, StyleSheet, Text } from "react-native";
 
-import { Colors } from "../constants/colors";
-import { clearCachedUser } from "../lib/localUser";
+import { Colors } from "../../constants/colors";
+import { clearCachedUser } from "../../lib/localUser";
 
 export default function Home() {
   const { user } = useUser();
   const { signOut } = useAuth();
 
-  const handleSignOut = async () => {
+ const handleSignOut = async () => {
+  try {
     await clearCachedUser();
     await signOut();
-  };
+
+    router.replace("/");
+
+  } catch (error) {
+    console.log("SIGN OUT ERROR:", error);
+  }
+};
 
   return (
     <LinearGradient

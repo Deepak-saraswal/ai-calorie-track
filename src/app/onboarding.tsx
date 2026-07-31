@@ -158,7 +158,8 @@ async function saveData() {
     };
 
     router.push({
-      pathname: "/generating-plan",
+     pathname: "/generating-plan",
+      
       params: {
         profile: JSON.stringify(profile),
       },
