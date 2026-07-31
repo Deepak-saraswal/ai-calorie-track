@@ -27,7 +27,7 @@ export default function GeneratingPlan() {
   async function generatePlan() {
   if (!user) {
     return;
-    
+
   }
 
   try {
@@ -50,10 +50,12 @@ export default function GeneratingPlan() {
       height: userProfile.height,
       weight: userProfile.weight,
 
+
       aiPlan,
+      onboardingCompleted: true,
     });
 
-    router.replace("/report");
+    router.replace("/tabs/analytics");
   } catch (error) {
     console.log(error);
   }

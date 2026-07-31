@@ -1,4 +1,4 @@
-import HomeScreen from "@/app/home";
+//import HomeScreen from "@/app/(tabs)/home";
 import { getUserProfile } from "@/lib/profileService";
 import { useAuth, useSSO, useUser } from "@clerk/expo";
 import { useSignIn, useSignUp } from "@clerk/expo/legacy";
@@ -42,6 +42,7 @@ function AuthScreen() {
   const { signUp, setActive: setActiveSignUp } = useSignUp();
   const { startSSOFlow } = useSSO();
   const clerkReady = Boolean(process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY);
+  
 
   const resetForm = (nextMode: AuthMode) => {
   setMode(nextMode);
@@ -69,14 +70,10 @@ function AuthScreen() {
           password,
         });
 
-        console.log("SIGN IN RESULT");
-console.log("status:", result.status);
-console.log("session:", result.createdSessionId);
-console.log(result);
+        console.log(result);
 
         if (result.status === "complete") {
           await setActiveSignIn({ session: result.createdSessionId });
-          console.log("setActive finished");
         } else {
           console.log("Sign in status:", result.status);
           console.log("Next step:", result);
@@ -227,58 +224,75 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
 
 
 function AuthenticatedIndex() {
-  
   const { isLoaded, isSignedIn } = useAuth();
   const [hasCachedUser, setHasCachedUser] = useState(false);
   const { user } = useUser();
 
 const [checkingProfile, setCheckingProfile] =
   useState(true);
-    console.log({
-    isLoaded,
-    isSignedIn,
-    checkingProfile,
-    user: user?.id,
-  });
-
 
   useEffect(() => {
     getCachedUser().then((cachedUser) => setHasCachedUser(Boolean(cachedUser)));
   }, []);
+
+  useEffect(() => {
+    console.log("AUTH STATUS", {
+      isLoaded,
+      isSignedIn,
+      user: user?.id,
+      checkingProfile
+    });
+  }, [isLoaded, isSignedIn, user, checkingProfile]);
 useEffect(() => {
+
   async function checkProfile() {
+
     if (!isLoaded) return;
+
 
     if (!isSignedIn || !user) {
       setCheckingProfile(false);
       return;
     }
 
+
     try {
+
       console.log("User:", user.id);
 
-      const profile = await getUserProfile(user.id);
+const profile = await getUserProfile(user.id);
 
-      console.log("Profile:", profile);
+console.log("Profile:", profile);
 
-      if (!profile || !profile.onboardingCompleted) {
-        console.log("GO TO ONBOARDING");
+// User has NOT completed onboarding
+if (!profile || !profile.onboardingCompleted) {
+  console.log("NEW USER - GO ONBOARDING");
 
-        setCheckingProfile(false);
+  setCheckingProfile(false);
 
-        router.replace("/onboarding");
-        return;
-      }
+  router.replace("/onboarding");
 
-      console.log("GO TO HOME");
-      setCheckingProfile(false);
+  return;
+}
 
-    } catch (error) {
+// Existing user
+console.log("EXISTING USER - GO HOME");
+
+setCheckingProfile(false);
+
+router.replace("/tabs/home");
+
+
+    } catch(error) {
+
       console.log("PROFILE ERROR:", error);
-    } finally {
+
       setCheckingProfile(false);
+
     }
+
   }
+
 
   checkProfile();
 
@@ -290,8 +304,22 @@ useEffect(() => {
     }
   }, [isLoaded, isSignedIn]);
 
-  if (!isLoaded || checkingProfile) return <View style={styles.loadingScreen}><ActivityIndicator size="large" color={Colors.primary} /><Text style={styles.loadingText}>{hasCachedUser ? "Restoring your secure session…" : "Preparing Pennywise xyz"}</Text></View>;
-  return isSignedIn ? <><UserSync /><HomeScreen /></> : <AuthScreen />;
+  if (!isLoaded || checkingProfile) return <View style={styles.loadingScreen}><ActivityIndicator size="large" color={Colors.primary} /><Text style={styles.loadingText}>{hasCachedUser ? "Restoring your secure session…" : "Preparing Pennywise…"}</Text></View>;
+  if (!isSignedIn) {
+  return <AuthScreen />;
+}
+
+return (
+  <>
+    <UserSync />
+    <View style={styles.loadingScreen}>
+      <ActivityIndicator
+        size="large"
+        color={Colors.primary}
+      />
+    </View>
+  </>
+);
 }
 
 function SetupRequired() {

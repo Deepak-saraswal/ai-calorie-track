@@ -5,10 +5,12 @@
   "dependencies": {
     "@clerk/expo": "^4.0.4",
     "@expo/ui": "~57.0.7",
+    "@expo/vector-icons": "^15.0.2",
     "@google/genai": "^2.14.0",
     "@hugeicons/core-free-icons": "^4.2.3",
     "@hugeicons/react-native": "^1.0.15",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-navigation/bottom-tabs": "^7.18.14",
     "expo": "~57.0.8",
     "expo-constants": "~57.0.7",
     "expo-device": "~57.0.1",
