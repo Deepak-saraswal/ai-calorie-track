@@ -21,14 +21,22 @@ export function UserSync() {
     const email = user.primaryEmailAddress?.emailAddress ?? null;
 
     const profile = {
-      clerkId: user.id,
-      email,
-      firstName: user.firstName ?? null,
-      lastName: user.lastName ?? null,
-      fullName: user.fullName ?? null,
-      imageUrl: user.imageUrl ?? null,
-      createdAt: new Date().toISOString(),
-    };
+  clerkId: user.id,
+
+  email,
+
+  firstName: user.firstName ?? null,
+
+  lastName: user.lastName ?? null,
+
+  fullName: user.fullName ?? null,
+
+  imageUrl: user.imageUrl ?? null,
+
+  
+
+  createdAt: new Date().toISOString(),
+};
 
     cacheUser({
       id: user.id,
