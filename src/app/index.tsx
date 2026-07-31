@@ -1,7 +1,10 @@
+import HomeScreen from "@/app/home";
+import { getUserProfile } from "@/lib/profileService";
 import { useAuth, useSSO, useUser } from "@clerk/expo";
 import { useSignIn, useSignUp } from "@clerk/expo/legacy";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,8 +20,8 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { UserSync } from "../components/UserSync";
+import { Colors } from "../constants/colors";
 import { clearCachedUser, getCachedUser } from "../lib/localUser";
-
 type AuthMode = "signIn" | "signUp";
 
 function errorMessage(error: unknown) {
@@ -66,10 +69,14 @@ function AuthScreen() {
           password,
         });
 
-        console.log(result);
+        console.log("SIGN IN RESULT");
+console.log("status:", result.status);
+console.log("session:", result.createdSessionId);
+console.log(result);
 
         if (result.status === "complete") {
           await setActiveSignIn({ session: result.createdSessionId });
+          console.log("setActive finished");
         } else {
           console.log("Sign in status:", result.status);
           console.log("Next step:", result);
@@ -133,7 +140,14 @@ function AuthScreen() {
   };
 
   return (
-    <LinearGradient colors={["#F4F7FF", "#FFFFFF", "#EEFDF7"]} style={styles.screen}>
+   <LinearGradient
+  colors={[
+    Colors.gradientStart,
+    Colors.gradientMiddle,
+    Colors.gradientEnd,
+  ]}
+  style={styles.screen}
+>
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
   style={styles.flex}
@@ -194,7 +208,7 @@ function AuthScreen() {
     <Text style={styles.forgot}>Forgot password?</Text>
   </Pressable>
 </>}
-              <Pressable disabled={loading} onPress={submitEmailAuth} style={({ pressed }) => [styles.primaryButton, (pressed || loading) && styles.buttonPressed]}><Text style={styles.primaryButtonText}>{loading ? "Please wait…" : awaitingVerification ? "Verify email" : mode === "signIn" ? "Sign in" : "Create account"}</Text>{loading && <ActivityIndicator color="#FFFFFF" size="small" />}</Pressable>
+              <Pressable disabled={loading} onPress={submitEmailAuth} style={({ pressed }) => [styles.primaryButton, (pressed || loading) && styles.buttonPressed]}><Text style={styles.primaryButtonText}>{loading ? "Please wait…" : awaitingVerification ? "Verify email" : mode === "signIn" ? "Sign in" : "Create account"}</Text>{loading && <ActivityIndicator color={Colors.white} size="small" />}</Pressable>
               {!awaitingVerification && <><View style={styles.divider}><View style={styles.line} /><Text style={styles.dividerText}>or continue with</Text><View style={styles.line} /></View><Pressable disabled={loading} onPress={signInWithGoogle} style={styles.googleButton}><Text style={styles.googleG}>G</Text><Text style={styles.googleText}>Google</Text></Pressable></>}
             </View>
             <Text style={styles.terms}>By continuing, you agree to our Terms of Service and Privacy Policy.</Text>
@@ -207,22 +221,68 @@ function AuthScreen() {
 
 function Field(props: React.ComponentProps<typeof TextInput> & { label: string }) {
   const { label, ...inputProps } = props;
-  return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput {...inputProps} style={styles.input} placeholderTextColor="#9BA7B8" /></View>;
+  return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput {...inputProps} style={styles.input} placeholderTextColor={Colors.inputPlaceholder} /></View>;
 }
 
-function Home() {
-  const { user } = useUser();
-  const { signOut } = useAuth();
-  return <LinearGradient colors={["#112A46", "#14596D"]} style={styles.home}><SafeAreaView style={styles.homeSafe}><Text style={styles.homeEyebrow}>YOUR PERSONAL LEDGER</Text><Text style={styles.homeTitle}>Hello, {user?.firstName || "there"}.</Text><Text style={styles.homeText}>Your account is secure and your basic profile is synced to Firestore.</Text><Pressable onPress={async () => { await clearCachedUser(); await signOut(); }} style={styles.signOut}><Text style={styles.signOutText}>Sign out</Text></Pressable></SafeAreaView></LinearGradient>;
-}
+
 
 function AuthenticatedIndex() {
+  
   const { isLoaded, isSignedIn } = useAuth();
   const [hasCachedUser, setHasCachedUser] = useState(false);
+  const { user } = useUser();
+
+const [checkingProfile, setCheckingProfile] =
+  useState(true);
+    console.log({
+    isLoaded,
+    isSignedIn,
+    checkingProfile,
+    user: user?.id,
+  });
+
 
   useEffect(() => {
     getCachedUser().then((cachedUser) => setHasCachedUser(Boolean(cachedUser)));
   }, []);
+useEffect(() => {
+  async function checkProfile() {
+    if (!isLoaded) return;
+
+    if (!isSignedIn || !user) {
+      setCheckingProfile(false);
+      return;
+    }
+
+    try {
+      console.log("User:", user.id);
+
+      const profile = await getUserProfile(user.id);
+
+      console.log("Profile:", profile);
+
+      if (!profile || !profile.onboardingCompleted) {
+        console.log("GO TO ONBOARDING");
+
+        setCheckingProfile(false);
+
+        router.replace("/onboarding");
+        return;
+      }
+
+      console.log("GO TO HOME");
+      setCheckingProfile(false);
+
+    } catch (error) {
+      console.log("PROFILE ERROR:", error);
+    } finally {
+      setCheckingProfile(false);
+    }
+  }
+
+  checkProfile();
+
+}, [isLoaded, isSignedIn, user]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -230,12 +290,16 @@ function AuthenticatedIndex() {
     }
   }, [isLoaded, isSignedIn]);
 
-  if (!isLoaded) return <View style={styles.loadingScreen}><ActivityIndicator size="large" color="#236BFE" /><Text style={styles.loadingText}>{hasCachedUser ? "Restoring your secure session…" : "Preparing Pennywise…"}</Text></View>;
-  return isSignedIn ? <><UserSync /><Home /></> : <AuthScreen />;
+  if (!isLoaded || checkingProfile) return <View style={styles.loadingScreen}><ActivityIndicator size="large" color={Colors.primary} /><Text style={styles.loadingText}>{hasCachedUser ? "Restoring your secure session…" : "Preparing Pennywise xyz"}</Text></View>;
+  return isSignedIn ? <><UserSync /><HomeScreen /></> : <AuthScreen />;
 }
 
 function SetupRequired() {
-  return <LinearGradient colors={["#F4F7FF", "#FFFFFF", "#EEFDF7"]} style={styles.screen}><SafeAreaView style={styles.setup}><View style={styles.brandMark}><Image source={require("../../assets/images/logo-glow.png")} style={styles.logo} contentFit="contain" /></View><Text style={styles.setupTitle}>Pennywise is ready.</Text><Text style={styles.setupText}>Copy .env.example to .env and add your Clerk publishable key to enable email and Google sign-in.</Text></SafeAreaView></LinearGradient>;
+  return <LinearGradient colors={[
+    Colors.gradientStart,
+    Colors.gradientMiddle,
+    Colors.gradientEnd,
+  ]} style={styles.screen}><SafeAreaView style={styles.setup}><View style={styles.brandMark}><Image source={require("../../assets/images/logo-glow.png")} style={styles.logo} contentFit="contain" /></View><Text style={styles.setupTitle}>Pennywise is ready.</Text><Text style={styles.setupText}>Copy .env.example to .env and add your Clerk publishable key to enable email and Google sign-in.</Text></SafeAreaView></LinearGradient>;
 }
 
 export default function Index() {
@@ -243,5 +307,44 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create<any>({
-  screen: { flex: 1 }, safeArea: { flex: 1 }, flex: { flex: 1 }, scrollContent: { padding: 24, paddingBottom: 120, flexGrow: 1 }, topRow: { flexDirection: "row", alignItems: "center", gap: 9 }, brandMark: { width: 36, height: 36, borderRadius: 12, backgroundColor: "#122C4B", overflow: "hidden" }, logo: { width: "100%", height: "100%" }, brand: { color: "#163353", fontSize: 18, fontWeight: "800", letterSpacing: -0.5 }, hero: { marginTop: 43, marginBottom: 27 }, heroIcon: { backgroundColor: "#DFF8ED", width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center", marginBottom: 17 }, heroEmoji: { color: "#0D9570", fontSize: 24 }, title: { color: "#102C4A", fontSize: 31, lineHeight: 37, fontWeight: "800", letterSpacing: -1.2 }, subtitle: { color: "#6D7C8E", fontSize: 15, lineHeight: 22, marginTop: 9, maxWidth: 300 }, card: { backgroundColor: "#FFFFFF", borderRadius: 28, padding: 18, shadowColor: "#264D67", shadowOpacity: 0.11, shadowRadius: 25, shadowOffset: { width: 0, height: 12 }, elevation: 5 }, tabs: { flexDirection: "row", backgroundColor: "#F2F5F8", borderRadius: 13, padding: 4, marginBottom: 20 }, tab: { flex: 1, paddingVertical: 11, alignItems: "center", borderRadius: 10 }, tabActive: { backgroundColor: "#FFFFFF", shadowColor: "#40546A", shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }, tabText: { color: "#718094", fontWeight: "700", fontSize: 13 }, tabTextActive: { color: "#173553" }, field: { marginBottom: 15 }, label: { color: "#38516B", fontWeight: "700", fontSize: 13, marginBottom: 7 }, input: { backgroundColor: "#F7F9FC", borderWidth: 1, borderColor: "#E7ECF2", borderRadius: 14, paddingHorizontal: 15, height: 52, color: "#163353", fontSize: 15 }, forgot: { alignSelf: "flex-end", color: "#236BFE", fontWeight: "700", fontSize: 13, marginTop: -5, marginBottom: 17 }, backLink: { color: "#236BFE", fontWeight: "700", fontSize: 13, marginTop: 0, marginBottom: 17 }, primaryButton: { backgroundColor: "#236BFE", height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 10, shadowColor: "#236BFE", shadowOpacity: 0.25, shadowRadius: 11, shadowOffset: { width: 0, height: 6 } }, buttonPressed: { opacity: 0.78 }, primaryButtonText: { color: "#FFFFFF", fontSize: 15, fontWeight: "800" }, divider: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 21 }, line: { height: 1, backgroundColor: "#E8EDF3", flex: 1 }, dividerText: { color: "#8B99A9", fontSize: 12, fontWeight: "600" }, googleButton: { height: 53, borderWidth: 1, borderColor: "#DFE6EE", borderRadius: 16, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 11 }, googleG: { color: "#4285F4", fontSize: 20, fontWeight: "800" }, googleText: { color: "#334C66", fontSize: 15, fontWeight: "700" }, terms: { color: "#8A97A7", fontSize: 11, lineHeight: 16, textAlign: "center", marginTop: 20, paddingHorizontal: 16 }, loadingScreen: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#F7F9FF" }, loadingText: { color: "#6D7C8E", fontSize: 14, fontWeight: "600", marginTop: 13 }, setup: { flex: 1, padding: 28, justifyContent: "center" }, setupTitle: { color: "#102C4A", fontSize: 32, fontWeight: "800", marginTop: 18, letterSpacing: -1 }, setupText: { color: "#6D7C8E", fontSize: 16, lineHeight: 24, marginTop: 10, maxWidth: 300 }, home: { flex: 1 }, homeSafe: { flex: 1, padding: 28, justifyContent: "center" }, homeEyebrow: { color: "#9CE9D0", fontSize: 12, fontWeight: "800", letterSpacing: 1.4 }, homeTitle: { color: "#FFFFFF", fontSize: 40, fontWeight: "800", marginTop: 13, letterSpacing: -1.3 }, homeText: { color: "#C9E2E8", fontSize: 16, lineHeight: 24, marginTop: 12, maxWidth: 290 }, signOut: { marginTop: 32, borderWidth: 1, borderColor: "#84C7D0", borderRadius: 14, alignSelf: "flex-start", paddingHorizontal: 20, paddingVertical: 13 }, signOutText: { color: "#FFFFFF", fontWeight: "800" },
+  screen: { flex: 1 },
+  safeArea: { flex: 1 },
+  flex: { flex: 1 },
+  scrollContent: { padding: 24, paddingBottom: 120, flexGrow: 1 },
+  topRow: { flexDirection: "row", alignItems: "center", gap: 9 },
+  brandMark: { width: 36, height: 36, borderRadius: 12, backgroundColor: Colors.primary, overflow: "hidden" },
+  logo: { width: "100%", height: "100%" },
+  brand: { color: Colors.textPrimary, fontSize: 18, fontWeight: "800", letterSpacing: -0.5 },
+  hero: { marginTop: 43, marginBottom: 27 },
+  heroIcon: { backgroundColor: Colors.primaryLight, width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center", marginBottom: 17 },
+  heroEmoji: { color: Colors.primary, fontSize: 24 },
+  title: { color: Colors.textPrimary, fontSize: 31, lineHeight: 37, fontWeight: "800", letterSpacing: -1.2 },
+  subtitle: { color: Colors.textSecondary, fontSize: 15, lineHeight: 22, marginTop: 9, maxWidth: 300 },
+  card: { backgroundColor: Colors.card, borderRadius: 28, padding: 18, shadowColor: "#264D67", shadowOpacity: 0.11, shadowRadius: 25, shadowOffset: { width: 0, height: 12 }, elevation: 5 },
+  tabs: { flexDirection: "row", backgroundColor: Colors.primaryLight, borderRadius: 13, padding: 4, marginBottom: 20 },
+  tab: { flex: 1, paddingVertical: 11, alignItems: "center", borderRadius: 10 },
+  tabActive: { backgroundColor: Colors.white, shadowColor: "#40546A", shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  tabText: { color: Colors.textSecondary, fontWeight: "700", fontSize: 13 },
+  tabTextActive: { color: Colors.primary },
+  field: { marginBottom: 15 },
+  label: { color: Colors.textPrimary, fontWeight: "700", fontSize: 13, marginBottom: 7 },
+  input: { backgroundColor: Colors.inputBackground, borderWidth: 1, borderColor: Colors.inputBorder, borderRadius: 14, paddingHorizontal: 15, height: 52, color: Colors.textPrimary, fontSize: 15 },
+  forgot: { alignSelf: "flex-end", color: Colors.primary, fontWeight: "700", fontSize: 13, marginTop: -5, marginBottom: 17 },
+  backLink: { color: Colors.primary, fontWeight: "700", fontSize: 13, marginTop: 0, marginBottom: 17 },
+  primaryButton: { backgroundColor: Colors.primary, height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 10, shadowColor: Colors.primary, shadowOpacity: 0.25, shadowRadius: 11, shadowOffset: { width: 0, height: 6 } },
+  buttonPressed: { opacity: 0.78 },
+  primaryButtonText: { color: Colors.white, fontSize: 15, fontWeight: "800" },
+  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 21 },
+  line: { height: 1, backgroundColor: Colors.borderLight, flex: 1 },
+  dividerText: { color: Colors.textLight, fontSize: 12, fontWeight: "600" },
+  googleButton: { height: 53, borderWidth: 1, borderColor: Colors.border, borderRadius: 16, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 11 },
+  googleG: { color: "#4285F4", fontSize: 20, fontWeight: "800" },
+  googleText: { color: Colors.textPrimary, fontSize: 15, fontWeight: "700" },
+  terms: { color: Colors.textLight, fontSize: 11, lineHeight: 16, textAlign: "center", marginTop: 20, paddingHorizontal: 16 },
+  loadingScreen: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.background },
+  loadingText: { color: Colors.textSecondary, fontSize: 14, fontWeight: "600", marginTop: 13 },
+  setup: { flex: 1, padding: 28, justifyContent: "center" },
+  setupTitle: { color: Colors.textPrimary, fontSize: 32, fontWeight: "800", marginTop: 18, letterSpacing: -1 },
+  setupText: { color: Colors.textSecondary, fontSize: 16, lineHeight: 24, marginTop: 10, maxWidth: 300 },
+  
 });
