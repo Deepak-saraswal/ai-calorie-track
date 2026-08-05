@@ -17,12 +17,14 @@ const isConfigured = Boolean(
     firebaseConfig.appId
 );
 
-const app = isConfigured
-  ? getApps().length
-    ? getApp()
-    : initializeApp(firebaseConfig)
-  : null;
+if (!isConfigured) {
+  throw new Error("Firebase configuration missing");
+}
 
-export const db = app ? getFirestore(app) : null;
+const app = getApps().length
+  ? getApp()
+  : initializeApp(firebaseConfig);
+
+export const db = getFirestore(app);
 
 export default app;
