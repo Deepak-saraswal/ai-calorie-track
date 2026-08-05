@@ -20,7 +20,7 @@ const isConfigured = Boolean(
 if (!isConfigured) {
   throw new Error("Firebase configuration missing");
 }
-
+//commit done 
 const app = getApps().length
   ? getApp()
   : initializeApp(firebaseConfig);
