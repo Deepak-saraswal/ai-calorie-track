@@ -158,16 +158,15 @@ export default function Add() {
 
           {/* 2. ADD WATER */}
 
-          <ActionCard
-            icon="water-outline"
-            title="Add Water"
-            subtitle="Track your hydration"
-            onPress={() => {
-              console.log("Add Water");
-              // Later:
-              // router.push("/water");
-            }}
-          />
+         <ActionCard
+  icon="water-outline"
+  title="Add Water"
+  subtitle="Track your hydration"
+  onPress={() => {
+    console.log("💧 ADD WATER PRESSED");
+    router.push("/water-intake");
+  }}
+/>
 
           {/* 3. FOOD DATABASE */}
 
