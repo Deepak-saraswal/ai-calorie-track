@@ -19,21 +19,11 @@ export default function TabsLayout() {
   tabBarShowLabel: false,
 
   tabBarStyle: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    bottom: 20,
-
-    height: 72,
-
-    borderRadius: 36,
-
-    backgroundColor: "#fff",
-
-    borderTopWidth: 0,
-
-    elevation: 12,
-  },
+  height: 72,
+  backgroundColor: "#fff",
+  borderTopWidth: 0,
+  elevation: 12,
+},
 
   // 👇 Add these
   tabBarItemStyle: {
