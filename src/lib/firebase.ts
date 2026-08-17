@@ -21,7 +21,7 @@ if (!isConfigured) {
   throw new Error("Firebase configuration missing");
 }
 //commit done 
-const app = getApps().length
+export const app = getApps().length
   ? getApp()
   : initializeApp(firebaseConfig);
 

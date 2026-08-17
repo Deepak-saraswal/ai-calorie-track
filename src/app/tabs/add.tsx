@@ -171,15 +171,14 @@ export default function Add() {
           {/* 3. FOOD DATABASE */}
 
           <ActionCard
-            icon="restaurant-outline"
-            title="Food Database"
-            subtitle="Find & log food"
-            onPress={() => {
-              console.log("Food Database");
-              // Later:
-              // router.push("/food-database");
-            }}
-          />
+  icon="restaurant-outline"
+  title="Food Database"
+  subtitle="Find & log food"
+  onPress={() => {
+    console.log("🍎 FOOD DATABASE PRESSED");
+    router.push("/food-database");
+  }}
+/>
 
           {/* 4. SCAN FOOD */}
 

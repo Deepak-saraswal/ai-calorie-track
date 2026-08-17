@@ -1,8 +1,8 @@
 import {
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import { HalfProgressbar } from "./HalfProgressbar";
@@ -12,6 +12,9 @@ const DARK_GREEN = "#185726";
 const TEXT = "#252825";
 const MUTED = "#7B817C";
 const WHITE = "#FFFFFF";
+function formatNumber(value: number) {
+  return Math.round(value);
+}
 
 interface CalorieCardProps {
   // Calories
@@ -150,8 +153,8 @@ export default function CalorieCard({
           </Text>
 
           <Text style={styles.macroValue}>
-            {remainingProtein}g
-          </Text>
+  {formatNumber(remainingProtein)}g
+</Text>
 
           <Text style={styles.macroSubText}>
             of {proteinGoal}g
@@ -165,9 +168,9 @@ export default function CalorieCard({
             Fat
           </Text>
 
-          <Text style={styles.macroValue}>
-            {remainingFat}g
-          </Text>
+         <Text style={styles.macroValue}>
+  {formatNumber(remainingCarbs)}g
+</Text>
 
           <Text style={styles.macroSubText}>
             of {fatGoal}g
@@ -182,8 +185,8 @@ export default function CalorieCard({
           </Text>
 
           <Text style={styles.macroValue}>
-            {remainingCarbs}g
-          </Text>
+  {formatNumber(remainingCarbs)}g
+</Text>
 
           <Text style={styles.macroSubText}>
             of {carbsGoal}g
