@@ -1,10 +1,11 @@
+
 import {
-    addDoc,
-    collection,
-    getDocs,
-    orderBy,
-    query,
-    serverTimestamp,
+  addDoc,
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
 } from "firebase/firestore";
 
 import { db } from "./firebase";
@@ -44,7 +45,6 @@ export interface DailyLog {
   createdAt?: any;
 }
 
-
 // =====================================================
 // Daily totals
 // =====================================================
@@ -57,12 +57,8 @@ export interface DailyTotals {
   waterMl: number;
 }
 
-
 // =====================================================
 // Local date formatter
-// IMPORTANT:
-// Don't use toISOString() here because it can shift
-// the date depending on timezone.
 // =====================================================
 
 export function formatDateKey(date: Date) {
@@ -78,7 +74,6 @@ export function formatDateKey(date: Date) {
 
   return `${year}-${month}-${day}`;
 }
-
 
 // =====================================================
 // Get logs reference
@@ -104,7 +99,6 @@ function getDailyLogsRef(
     "entries"
   );
 }
-
 
 // =====================================================
 // Get selected day's logs
@@ -177,6 +171,162 @@ export async function getDailyLogs(
   });
 }
 
+// =====================================================
+// Check whether a date has activity
+// =====================================================
+
+export async function hasDailyActivity(
+  userId: string,
+  date: Date
+): Promise<boolean> {
+  if (!db) {
+    return false;
+  }
+
+  const logsRef =
+    getDailyLogsRef(userId, date);
+
+  if (!logsRef) {
+    return false;
+  }
+
+  // We only need to know whether at least
+  // one activity exists for this date.
+  const snapshot =
+    await getDocs(logsRef);
+
+  return !snapshot.empty;
+}
+
+// =====================================================
+// Get current week's activity
+//
+// Week:
+// Sunday -> Saturday
+//
+// Example:
+// [
+//   { date: Date, dateKey: "2026-08-16", active: true },
+//   { date: Date, dateKey: "2026-08-17", active: true },
+//   ...
+// ]
+// =====================================================
+
+export interface WeeklyActivityDay {
+  date: Date;
+  dateKey: string;
+  active: boolean;
+}
+
+export async function getCurrentWeekActivity(
+  userId: string
+): Promise<WeeklyActivityDay[]> {
+  if (!userId) {
+    return [];
+  }
+
+  const today = new Date();
+
+  // JavaScript:
+  // Sunday = 0
+  // Monday = 1
+  // ...
+  // Saturday = 6
+  const dayOfWeek =
+    today.getDay();
+
+  // Get this week's Sunday.
+  const sunday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() - dayOfWeek
+  );
+
+  const days: WeeklyActivityDay[] = [];
+
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(
+      sunday.getFullYear(),
+      sunday.getMonth(),
+      sunday.getDate() + i
+    );
+
+    const active =
+      await hasDailyActivity(
+        userId,
+        date
+      );
+
+    days.push({
+      date,
+      dateKey:
+        formatDateKey(date),
+      active,
+    });
+  }
+
+  return days;
+}
+
+// =====================================================
+// Calculate current streak
+//
+// Counts consecutive active days ending today.
+//
+// Example:
+//
+// Sun ✅
+// Mon ✅
+// Tue ✅
+// Wed ❌
+// Thu ❌
+//
+// Current streak = 0
+//
+// If today is active:
+//
+// Sun ❌
+// Mon ✅
+// Tue ✅
+// Wed ✅
+//
+// Current streak = 3
+// =====================================================
+
+export function calculateCurrentStreak(
+  weeklyActivity: WeeklyActivityDay[]
+): number {
+  if (
+    weeklyActivity.length !== 7
+  ) {
+    return 0;
+  }
+
+  const today =
+    new Date();
+
+  const todayIndex =
+    today.getDay();
+
+  let streak = 0;
+
+  // Start from today and move backwards.
+  for (
+    let index = todayIndex;
+    index >= 0;
+    index--
+  ) {
+    if (
+      !weeklyActivity[index]?.active
+    ) {
+      break;
+    }
+
+    streak++;
+  }
+
+  return streak;
+}
 
 // =====================================================
 // Calculate daily totals
@@ -219,7 +369,6 @@ export function calculateDailyTotals(
   );
 }
 
-
 // =====================================================
 // Get selected day's logs + totals
 // =====================================================
@@ -243,7 +392,6 @@ export async function getDailyData(
   };
 }
 
-
 // =====================================================
 // Add log
 // =====================================================
@@ -263,7 +411,10 @@ export async function addDailyLog(
   }
 
   const logsRef =
-    getDailyLogsRef(userId, date);
+    getDailyLogsRef(
+      userId,
+      date
+    );
 
   if (!logsRef) {
     throw new Error(
