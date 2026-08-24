@@ -204,6 +204,9 @@ Rules:
 
     const result = JSON.parse(text);
 
+
+    
+
     // ==================================================
     // Validate Response
     // ==================================================
@@ -366,6 +369,145 @@ Rules:
   } catch (error) {
     console.log(
       "❌ Gemini Food Analysis Error:",
+      error
+    );
+
+    throw error;
+  }
+}
+// ==================================================
+// AI Weekly Food Summary
+// ==================================================
+
+export interface WeeklyFoodSummary {
+  summary: string;
+  highlight: string;
+  insight: string;
+  recommendation: string;
+  eatingPattern: string;
+}
+
+export async function generateWeeklyFoodSummary(
+  foodData: {
+    date: string;
+    foods: {
+      name: string;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+    }[];
+  }[]
+): Promise<WeeklyFoodSummary> {
+  const prompt = `
+You are an expert nutritionist and AI fitness coach.
+
+Analyze the user's ACTUAL food consumption from the current week.
+
+Do NOT invent foods or nutrition data.
+Only use the food information provided below.
+
+CURRENT WEEK FOOD DATA:
+
+${JSON.stringify(foodData, null, 2)}
+
+Generate a concise but useful analysis of the user's eating pattern.
+
+Return ONLY valid JSON in exactly this structure:
+
+{
+  "summary": "",
+  "highlight": "",
+  "insight": "",
+  "recommendation": "",
+  "eatingPattern": ""
+}
+
+Rules:
+
+- summary:
+  Give a 1-2 sentence summary of what the user actually ate this week.
+
+- highlight:
+  Mention the strongest positive aspect of their food intake.
+
+- insight:
+  Give one useful nutrition insight based ONLY on the provided data.
+
+- recommendation:
+  Give one practical recommendation for improving their nutrition.
+
+- eatingPattern:
+  Describe the overall eating pattern in a short phrase.
+  Examples:
+  "Protein-focused"
+  "Carb-heavy"
+  "Balanced"
+  "Low-protein"
+  "Inconsistent"
+
+Additional rules:
+
+- Do not invent foods.
+- Do not invent calories.
+- Do not invent nutrition values.
+- Do not diagnose medical conditions.
+- Keep every field concise.
+- No markdown.
+- No bullet points.
+- No code block.
+- Return ONLY JSON.
+`;
+
+  try {
+    console.log("=================================");
+    console.log("🤖 Generating Weekly Food Summary...");
+    console.log("=================================");
+
+    const response = await generateWithRetry(
+      prompt,
+      {
+        responseMimeType: "application/json",
+        temperature: 0.3,
+      }
+    );
+
+    const text = response.text;
+
+    if (!text) {
+      throw new Error(
+        "Gemini returned an empty weekly food summary."
+      );
+    }
+
+    console.log(
+      "🥗 Gemini Weekly Food Summary:"
+    );
+
+    console.log(text);
+
+    const result = JSON.parse(text);
+
+    if (
+      typeof result.summary !== "string" ||
+      typeof result.highlight !== "string" ||
+      typeof result.insight !== "string" ||
+      typeof result.recommendation !== "string" ||
+      typeof result.eatingPattern !== "string"
+    ) {
+      throw new Error(
+        "Gemini returned invalid weekly food summary data."
+      );
+    }
+
+    console.log(
+      "✅ Weekly food summary generated."
+    );
+
+    return result;
+  } catch (error) {
+    console.log(
+      "❌ Gemini Weekly Food Summary Error:",
       error
     );
 

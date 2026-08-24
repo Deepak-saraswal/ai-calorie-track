@@ -13,16 +13,37 @@ import {
    View,
 } from "react-native";
 
+// =====================================================
+// Internal imports
+// =====================================================
+
+import AIFoodSummary from "@/components/AIFoodSummary";
+import WeeklyCaloriesChart from "@/components/WeeklyCaloriesChart";
+import WeeklyEnergyCard from "@/components/WeeklyEnergyCard";
+import WeeklyWaterCard from "@/components/WeeklyWaterCard";
 import { getUserProfile } from "@/lib/profileService";
 
-import Report from "../report";
+
 
 import {
    calculateCurrentStreak,
+   getCachedWeeklyFoodSummary,
    getCurrentWeekActivity,
+   getCurrentWeekCalories,
+   getCurrentWeekEnergy,
+   getCurrentWeekFoodData,
+   getCurrentWeekWater,
+   saveWeeklyFoodSummary,
    WeeklyActivityDay,
-} from "../../lib/dailyLogService";
+   WeeklyCaloriesDay,
+   WeeklyEnergyDay,
+   WeeklyWaterDay,
+} from "@/lib/dailyLogService";
 
+import {
+   generateWeeklyFoodSummary,
+   WeeklyFoodSummary,
+} from "@/lib/gemini";
 // =====================================================
 // Colors
 // =====================================================
@@ -58,11 +79,18 @@ const WEEK_LABELS = [
 export default function Analytics() {
   const { user } = useUser();
 
-  const [loading, setLoading] = useState(true);
+  // ===================================================
+  // State
+  // ===================================================
 
-  const [hasPlan, setHasPlan] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [weight, setWeight] = useState<number | null>(null);
+  const [hasPlan, setHasPlan] =
+    useState(false);
+
+  const [weight, setWeight] =
+    useState<number | null>(null);
 
   const [weeklyActivity, setWeeklyActivity] =
     useState<WeeklyActivityDay[]>([]);
@@ -70,11 +98,23 @@ export default function Analytics() {
   const [currentStreak, setCurrentStreak] =
     useState(0);
 
+  const [weeklyEnergy, setWeeklyEnergy] =
+    useState<WeeklyEnergyDay[]>([]);
+
+  const [weeklyCalories, setWeeklyCalories] =
+    useState<WeeklyCaloriesDay[]>([]);
+    const [weeklyWater, setWeeklyWater] =
+  useState<WeeklyWaterDay[]>([]);
+
   const [showStreakModal, setShowStreakModal] =
     useState(false);
+  const [aiFoodSummary, setAiFoodSummary] =
+  useState<WeeklyFoodSummary | null>(null);
 
+const [aiFoodLoading, setAiFoodLoading] =
+  useState(false);
   // ===================================================
-  // Load Analytics Data
+  // Load analytics
   // ===================================================
 
   useEffect(() => {
@@ -84,6 +124,177 @@ export default function Analytics() {
 
     loadAnalytics();
   }, [user?.id]);
+
+  // ===================================================
+// Load AI Weekly Food Summary
+// ===================================================
+// ===================================================
+// Load AI Weekly Food Summary
+//
+// Uses cached result for 6 hours.
+// Generates a new result only after 6 hours.
+// ===================================================
+
+async function loadAIFoodSummary(
+   userId: string
+) {
+   try {
+      console.log(
+         "================================="
+      );
+
+      console.log(
+         "🥗 Checking cached AI food summary..."
+      );
+
+      console.log(
+         "================================="
+      );
+
+      // =============================================
+      // STEP 1
+      // Check Firebase cache
+      // =============================================
+
+      const cached =
+         await getCachedWeeklyFoodSummary(
+            userId
+         );
+
+      // =============================================
+      // STEP 2
+      // Use cached result
+      // =============================================
+
+      if (
+         cached.summary &&
+         !cached.shouldGenerate
+      ) {
+         console.log(
+            "⚡ Using existing AI summary."
+         );
+
+         setAiFoodSummary({
+            summary:
+               cached.summary.summary,
+
+            highlight:
+               cached.summary.highlight,
+
+            insight:
+               cached.summary.insight,
+
+            recommendation:
+               cached.summary.recommendation,
+
+            eatingPattern:
+               cached.summary.eatingPattern,
+         });
+
+         return;
+      }
+
+      // =============================================
+      // STEP 3
+      // Need new AI response
+      // =============================================
+
+      console.log(
+         "🤖 AI summary needs to be generated."
+      );
+
+      // Show loading ONLY inside AI component.
+      // Do NOT block Analytics.
+      setAiFoodLoading(true);
+
+      // =============================================
+      // STEP 4
+      // Get actual food data
+      // =============================================
+
+      const foodData =
+         await getCurrentWeekFoodData(
+            userId
+         );
+
+      console.log(
+         "🥗 Weekly Food Data:",
+         foodData
+      );
+
+      // =============================================
+      // STEP 5
+      // Check whether food exists
+      // =============================================
+
+      const hasFood =
+         foodData.some(
+            (day) =>
+               day.foods.length > 0
+         );
+
+      if (!hasFood) {
+         console.log(
+            "ℹ️ No food logged this week."
+         );
+
+         setAiFoodSummary(null);
+
+         return;
+      }
+
+      // =============================================
+      // STEP 6
+      // Generate Gemini response
+      // =============================================
+
+      console.log(
+         "🤖 Generating new AI food summary..."
+      );
+
+      const summary =
+         await generateWeeklyFoodSummary(
+            foodData
+         );
+
+      console.log(
+         "✅ New AI summary generated:",
+         summary
+      );
+
+      // =============================================
+      // STEP 7
+      // Update UI immediately
+      // =============================================
+
+      setAiFoodSummary(
+         summary
+      );
+
+      // =============================================
+      // STEP 8
+      // Save response to Firebase
+      // =============================================
+
+      await saveWeeklyFoodSummary(
+         userId,
+         summary
+      );
+
+   } catch (error) {
+      console.log(
+         "❌ AI FOOD SUMMARY ERROR:",
+         error
+      );
+
+   } finally {
+      setAiFoodLoading(false);
+   }
+}
+
+  // ===================================================
+  // Load Analytics Data
+  // ===================================================
 
   async function loadAnalytics() {
     if (!user?.id) {
@@ -97,13 +308,12 @@ export default function Analytics() {
       // Load profile
       // ===============================================
 
-      const profile = await getUserProfile(user.id);
+      const profile =
+        await getUserProfile(user.id);
 
-      if (profile?.aiPlan) {
-        setHasPlan(true);
-      } else {
-        setHasPlan(false);
-      }
+      setHasPlan(
+        Boolean(profile?.aiPlan)
+      );
 
       // ===============================================
       // Load weight
@@ -113,7 +323,8 @@ export default function Analytics() {
         profile?.weight !== undefined &&
         profile?.weight !== null
       ) {
-        const userWeight = Number(profile.weight);
+        const userWeight =
+          Number(profile.weight);
 
         if (!Number.isNaN(userWeight)) {
           setWeight(userWeight);
@@ -125,18 +336,78 @@ export default function Analytics() {
       // ===============================================
 
       const activity =
-        await getCurrentWeekActivity(user.id);
+        await getCurrentWeekActivity(
+          user.id
+        );
 
-      setWeeklyActivity(activity);
+      setWeeklyActivity(
+        activity
+      );
+
+      // ===============================================
+      // Load weekly energy
+      //
+      // This should contain:
+      //
+      // consumed calories
+      // burned calories
+      // net calories
+      //
+      // for Sunday -> Saturday
+      // ===============================================
+
+      const energy =
+        await getCurrentWeekEnergy(
+          user.id
+        );
+
+      setWeeklyEnergy(
+        energy
+      );
+      // ===============================================
+// Load weekly water
+// ===============================================
+
+const water =
+  await getCurrentWeekWater(
+    user.id
+  );
+
+setWeeklyWater(water);
+
+      // ===============================================
+      // Load weekly calories
+      // ===============================================
+
+      const calories =
+        await getCurrentWeekCalories(
+          user.id
+        );
+
+      setWeeklyCalories(
+        calories
+      );
+      
 
       // ===============================================
       // Calculate streak
       // ===============================================
 
       const streak =
-        calculateCurrentStreak(activity);
+        calculateCurrentStreak(
+          activity
+        );
 
-      setCurrentStreak(streak);
+      setCurrentStreak(
+        streak
+      );
+      // ===============================================
+// Load AI weekly food summary
+// ===============================================
+
+ loadAIFoodSummary(
+  user.id
+);
     } catch (error) {
       console.log(
         "ANALYTICS LOAD ERROR:",
@@ -145,6 +416,7 @@ export default function Analytics() {
     } finally {
       setLoading(false);
     }
+
   }
 
   // ===================================================
@@ -153,14 +425,24 @@ export default function Analytics() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loadingContainer}>
+      <SafeAreaView
+        style={styles.safeArea}
+      >
+        <View
+          style={
+            styles.loadingContainer
+          }
+        >
           <ActivityIndicator
             size="large"
             color={GREEN}
           />
 
-          <Text style={styles.loadingText}>
+          <Text
+            style={
+              styles.loadingText
+            }
+          >
             Loading your progress...
           </Text>
         </View>
@@ -172,9 +454,12 @@ export default function Analytics() {
   // Week Day Helper
   // ===================================================
 
-  function getWeekDayActivity(index: number) {
+  function getWeekDayActivity(
+    index: number
+  ) {
     return (
-      weeklyActivity[index]?.active ?? false
+      weeklyActivity[index]
+        ?.active ?? false
     );
   }
 
@@ -183,31 +468,41 @@ export default function Analytics() {
   // ===================================================
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={styles.safeArea}
+    >
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={
+          styles.container
+        }
       >
-        {/* =========================================
+        {/* =================================================
             HEADER
-        ========================================= */}
+        ================================================= */}
 
-        <Text style={styles.heading}>
+        <Text
+          style={styles.heading}
+        >
           Progress
         </Text>
 
-        <Text style={styles.subtitle}>
+        <Text
+          style={styles.subtitle}
+        >
           Stay consistent and track your progress
         </Text>
 
-        {/* =========================================
-            PROGRESS CARDS
-        ========================================= */}
+        {/* =================================================
+            STREAK + WEIGHT
+        ================================================= */}
 
-        <View style={styles.cardsRow}>
-          {/* =======================================
+        <View
+          style={styles.cardsRow}
+        >
+          {/* ===============================================
               DAILY STREAK
-          ======================================= */}
+          =============================================== */}
 
           <Pressable
             onPress={() =>
@@ -216,60 +511,89 @@ export default function Analytics() {
             style={({ pressed }) => [
               styles.progressCard,
               styles.streakCard,
-              pressed && styles.cardPressed,
+              pressed &&
+                styles.cardPressed,
             ]}
           >
-            {/* Fire */}
+            {/* Top */}
 
-            <View style={styles.streakTopRow}>
-  <View style={styles.fireContainer}>
-    <Image
-      source={require("../../../assets/images/fire.png")}
-      style={styles.fireImage}
-      resizeMode="contain"
-    />
-  </View>
+            <View
+              style={
+                styles.streakTopRow
+              }
+            >
+              <View
+                style={
+                  styles.fireContainer
+                }
+              >
+                <Image
+                  source={require(
+                    "../../../assets/images/fire.png"
+                  )}
+                  style={
+                    styles.fireImage
+                  }
+                  resizeMode="contain"
+                />
+              </View>
 
-  <View style={styles.streakArrow}>
-    <Ionicons
-      name="chevron-forward"
-      size={17}
-      color={MUTED}
-    />
-  </View>
-</View>
+              <View
+                style={
+                  styles.streakArrow
+                }
+              >
+                <Ionicons
+                  name="chevron-forward"
+                  size={17}
+                  color={MUTED}
+                />
+              </View>
+            </View>
 
-            {/* Streak */}
+            {/* Number */}
 
-            <Text style={styles.streakNumber}>
+            <Text
+              style={
+                styles.streakNumber
+              }
+            >
               {currentStreak}
             </Text>
 
-            <Text style={styles.cardTitle}>
+            <Text
+              style={styles.cardTitle}
+            >
               Daily Streak
-            </Text>
-
-            {/* Current Week */}
-
-            <Text style={styles.weekTitle}>
-              Current Week
             </Text>
 
             {/* Week */}
 
-            <View style={styles.weekRow}>
+            <Text
+              style={
+                styles.weekTitle
+              }
+            >
+              Current Week
+            </Text>
+
+            <View
+              style={styles.weekRow}
+            >
               {WEEK_LABELS.map(
                 (day, index) => {
                   const active =
-                    getWeekDayActivity(index);
+                    getWeekDayActivity(
+                      index
+                    );
 
                   return (
                     <View
                       key={`${day}-${index}`}
-                      style={styles.weekDay}
+                      style={
+                        styles.weekDay
+                      }
                     >
-                      {/* Day */}
-
                       <Text
                         style={[
                           styles.dayLabel,
@@ -279,8 +603,6 @@ export default function Analytics() {
                       >
                         {day}
                       </Text>
-
-                      {/* Check */}
 
                       <View
                         style={[
@@ -304,9 +626,9 @@ export default function Analytics() {
             </View>
           </Pressable>
 
-          {/* =======================================
+          {/* ===============================================
               WEIGHT
-          ======================================= */}
+          =============================================== */}
 
           <View
             style={[
@@ -314,9 +636,11 @@ export default function Analytics() {
               styles.weightCard,
             ]}
           >
-            {/* Icon */}
-
-            <View style={styles.weightIcon}>
+            <View
+              style={
+                styles.weightIcon
+              }
+            >
               <Ionicons
                 name="scale-outline"
                 size={25}
@@ -324,13 +648,15 @@ export default function Analytics() {
               />
             </View>
 
-            {/* Weight */}
-
             <View
-              style={styles.weightValueRow}
+              style={
+                styles.weightValueRow
+              }
             >
               <Text
-                style={styles.weightValue}
+                style={
+                  styles.weightValue
+                }
               >
                 {weight !== null
                   ? weight
@@ -339,36 +665,74 @@ export default function Analytics() {
 
               {weight !== null && (
                 <Text
-                  style={styles.weightUnit}
+                  style={
+                    styles.weightUnit
+                  }
                 >
                   kg
                 </Text>
               )}
             </View>
 
-            <Text style={styles.cardTitle}>
+            <Text
+              style={styles.cardTitle}
+            >
               My Weight
             </Text>
 
-            <Text style={styles.weightHint}>
+            <Text
+              style={
+                styles.weightHint
+              }
+            >
               Current weight
             </Text>
           </View>
         </View>
 
-        {/* =========================================
-            EXISTING REPORT
-        ========================================= */}
+        {/* =================================================
+            WEEKLY CALORIES
+        ================================================= */}
 
-        {hasPlan ? (
+        <WeeklyCaloriesChart
+          data={weeklyCalories}
+        />
+ <AIFoodSummary
+  data={aiFoodSummary}
+  loading={aiFoodLoading}
+/>
+        {/* =================================================
+            WEEKLY ENERGY
+        ================================================= */}
+      
+
+
+
+        <WeeklyEnergyCard
+          data={weeklyEnergy}
+        />
+
+<WeeklyWaterCard
+  data={weeklyWater}
+/>
+
+        {/* =================================================
+            EXISTING REPORT
+        ================================================= */}
+
+        {/* {hasPlan ? (
           <View
-            style={styles.reportContainer}
+            style={
+              styles.reportContainer
+            }
           >
             <Report />
           </View>
         ) : (
           <View
-            style={styles.noPlanContainer}
+            style={
+              styles.noPlanContainer
+            }
           >
             <Ionicons
               name="analytics-outline"
@@ -377,19 +741,23 @@ export default function Analytics() {
             />
 
             <Text
-              style={styles.noPlanTitle}
+              style={
+                styles.noPlanTitle
+              }
             >
               Fitness plan not available
             </Text>
 
             <Text
-              style={styles.noPlanText}
+              style={
+                styles.noPlanText
+              }
             >
               Complete your fitness plan to
               see your detailed progress.
             </Text>
           </View>
-        )}
+        )} */}
       </ScrollView>
 
       {/* =================================================
@@ -404,11 +772,17 @@ export default function Analytics() {
           setShowStreakModal(false)
         }
       >
-        <View style={styles.modalOverlay}>
+        <View
+          style={
+            styles.modalOverlay
+          }
+        >
           {/* Backdrop */}
 
           <Pressable
-            style={StyleSheet.absoluteFill}
+            style={
+              StyleSheet.absoluteFill
+            }
             onPress={() =>
               setShowStreakModal(false)
             }
@@ -416,15 +790,21 @@ export default function Analytics() {
 
           {/* Modal */}
 
-          <View style={styles.streakModal}>
-            {/* =========================================
-                CLOSE BUTTON
-            ========================================= */}
+          <View
+            style={
+              styles.streakModal
+            }
+          >
+            {/* Close */}
 
             <Pressable
-              style={styles.closeButton}
+              style={
+                styles.closeButton
+              }
               onPress={() =>
-                setShowStreakModal(false)
+                setShowStreakModal(
+                  false
+                )
               }
             >
               <Ionicons
@@ -434,9 +814,7 @@ export default function Analytics() {
               />
             </Pressable>
 
-            {/* =========================================
-                FIRE
-            ========================================= */}
+            {/* Fire */}
 
             <View
               style={
@@ -444,32 +822,40 @@ export default function Analytics() {
               }
             >
               <Image
-                source={require("../../../assets/images/fire.png")}
-                style={styles.modalFire}
+                source={require(
+                  "../../../assets/images/fire.png"
+                )}
+                style={
+                  styles.modalFire
+                }
                 resizeMode="contain"
               />
             </View>
 
-            {/* =========================================
-                TITLE
-            ========================================= */}
+            {/* Title */}
 
-            <Text style={styles.modalTitle}>
+            <Text
+              style={
+                styles.modalTitle
+              }
+            >
               Daily Streak
             </Text>
 
             <Text
-              style={styles.modalSubtitle}
+              style={
+                styles.modalSubtitle
+              }
             >
               Keep showing up every day
             </Text>
 
-            {/* =========================================
-                BIG STREAK CARD
-            ========================================= */}
+            {/* Current streak */}
 
             <View
-              style={styles.bigStreakCard}
+              style={
+                styles.bigStreakCard
+              }
             >
               <View>
                 <Text
@@ -505,11 +891,15 @@ export default function Analytics() {
                 </View>
               </View>
 
-              {/* Fire chip */}
-
-              <View style={styles.fireChip}>
+              <View
+                style={
+                  styles.fireChip
+                }
+              >
                 <Text
-                  style={styles.fireEmoji}
+                  style={
+                    styles.fireEmoji
+                  }
                 >
                   🔥
                 </Text>
@@ -524,28 +914,34 @@ export default function Analytics() {
               </View>
             </View>
 
-            {/* =========================================
-                WEEK
-            ========================================= */}
+            {/* Week */}
 
             <Text
-              style={styles.modalWeekTitle}
+              style={
+                styles.modalWeekTitle
+              }
             >
               This Week
             </Text>
 
             <View
-              style={styles.modalWeekCard}
+              style={
+                styles.modalWeekCard
+              }
             >
               {WEEK_LABELS.map(
                 (day, index) => {
                   const active =
-                    getWeekDayActivity(index);
+                    getWeekDayActivity(
+                      index
+                    );
 
                   return (
                     <View
                       key={`${day}-modal-${index}`}
-                      style={styles.modalDayItem}
+                      style={
+                        styles.modalDayItem
+                      }
                     >
                       <Text
                         style={
@@ -582,12 +978,12 @@ export default function Analytics() {
               )}
             </View>
 
-            {/* =========================================
-                MOTIVATION
-            ========================================= */}
+            {/* Motivation */}
 
             <View
-              style={styles.motivationBox}
+              style={
+                styles.motivationBox
+              }
             >
               <Ionicons
                 name="sparkles-outline"
@@ -660,7 +1056,6 @@ const styles = StyleSheet.create({
 
   progressCard: {
     flex: 1,
-
     minHeight: 225,
 
     backgroundColor: WHITE,
@@ -675,6 +1070,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 10,
+
     shadowOffset: {
       width: 0,
       height: 4,
@@ -697,12 +1093,19 @@ const styles = StyleSheet.create({
         scale: 0.98,
       },
     ],
+
     opacity: 0.92,
   },
 
   // ===================================================
-  // Fire
+  // Streak Top
   // ===================================================
+
+  streakTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
 
   fireContainer: {
     width: 43,
@@ -715,26 +1118,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-streakTopRow: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between",
-},
 
-streakArrow: {
-  width: 30,
-  height: 30,
-
-  borderRadius: 15,
-
-  backgroundColor: "#F5F7F5",
-
-  alignItems: "center",
-  justifyContent: "center",
-},
   fireImage: {
     width: 29,
     height: 29,
+  },
+
+  streakArrow: {
+    width: 30,
+    height: 30,
+
+    borderRadius: 15,
+
+    backgroundColor: "#F5F7F5",
+
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   // ===================================================
@@ -910,13 +1309,14 @@ streakArrow: {
   },
 
   // ===================================================
-  // MODAL
+  // Modal
   // ===================================================
 
   modalOverlay: {
     flex: 1,
 
-    backgroundColor: "rgba(0,0,0,0.45)",
+    backgroundColor:
+      "rgba(0,0,0,0.45)",
 
     justifyContent: "center",
     alignItems: "center",
@@ -936,6 +1336,7 @@ streakArrow: {
     shadowColor: "#000",
     shadowOpacity: 0.2,
     shadowRadius: 30,
+
     shadowOffset: {
       width: 0,
       height: 12,
@@ -963,6 +1364,10 @@ streakArrow: {
     zIndex: 10,
   },
 
+  // ===================================================
+  // Modal Fire
+  // ===================================================
+
   modalFireContainer: {
     width: 76,
     height: 76,
@@ -984,6 +1389,10 @@ streakArrow: {
     height: 52,
   },
 
+  // ===================================================
+  // Modal Header
+  // ===================================================
+
   modalTitle: {
     fontSize: 26,
     fontWeight: "800",
@@ -1004,7 +1413,7 @@ streakArrow: {
   },
 
   // ===================================================
-  // BIG STREAK
+  // Big Streak
   // ===================================================
 
   bigStreakCard: {
@@ -1024,6 +1433,7 @@ streakArrow: {
     shadowColor: GREEN,
     shadowOpacity: 0.2,
     shadowRadius: 15,
+
     shadowOffset: {
       width: 0,
       height: 7,
@@ -1082,7 +1492,7 @@ streakArrow: {
   },
 
   // ===================================================
-  // MODAL WEEK
+  // Modal Week
   // ===================================================
 
   modalWeekTitle: {
@@ -1152,7 +1562,7 @@ streakArrow: {
   },
 
   // ===================================================
-  // MOTIVATION
+  // Motivation
   // ===================================================
 
   motivationBox: {
