@@ -16,10 +16,13 @@ import { WeeklyEnergyDay } from "../lib/dailyLogService";
 const GREEN = "#219931";
 const DARK_GREEN = "#185726";
 const LIGHT_GREEN = "#E8EFE9";
+
 const TEXT = "#252825";
 const MUTED = "#7B817C";
 const WHITE = "#FFFFFF";
+
 const BORDER = "#E5EAE5";
+
 const ORANGE = "#FF7A00";
 const LIGHT_ORANGE = "#FFF3E8";
 
@@ -45,9 +48,10 @@ interface WeeklyEnergyCardProps {
 export default function WeeklyEnergyCard({
   data,
 }: WeeklyEnergyCardProps) {
-  // ---------------------------------------------------
-  // Always keep exactly 7 days
-  // ---------------------------------------------------
+  // ===================================================
+  // WEEK LABELS
+  // Sunday -> Saturday
+  // ===================================================
 
   const labels = [
     "S",
@@ -59,50 +63,90 @@ export default function WeeklyEnergyCard({
     "S",
   ];
 
-  const chartData =
-    Array.from(
-      { length: 7 },
-      (_, index) => {
-        return (
-          data[index] ?? {
-            date: new Date(),
-            dateKey: "",
-            label:
-              labels[index],
-            consumed: 0,
-            burned: 0,
-          }
-        );
-      }
-    );
+  // ===================================================
+  // ALWAYS KEEP EXACTLY 7 DAYS
+  // ===================================================
 
-  // ---------------------------------------------------
-  // Values
-  // ---------------------------------------------------
+  const chartData = Array.from(
+    { length: 7 },
+    (_, index) => {
+      return (
+        data[index] ?? {
+          date: new Date(),
+          dateKey: "",
+          label: labels[index],
+          consumed: 0,
+          burned: 0,
+        }
+      );
+    }
+  );
+
+  // ===================================================
+  // CONSUMED VALUES
+  // ===================================================
 
   const consumedValues =
-    chartData.map((day) =>
-      Math.max(
+    chartData.map((day) => {
+      const value = Number(
+        day.consumed ?? 0
+      );
+
+      return Math.max(
         0,
-        Math.round(
-          day.consumed || 0
-        )
-      )
-    );
+        Math.round(value)
+      );
+    });
+
+  // ===================================================
+  // BURNED VALUES
+  //
+  // IMPORTANT:
+  //
+  // Your service is currently returning:
+  //
+  // burned: -269
+  //
+  // For the UI, burned calories should be
+  // displayed as a positive amount:
+  //
+  // -269 -> 269
+  //
+  // ===================================================
 
   const burnedValues =
-    chartData.map((day) =>
-      Math.max(
-        0,
-        Math.round(
-          day.burned || 0
-        )
-      )
-    );
+    chartData.map((day) => {
+      const value = Number(
+        day.burned ?? 0
+      );
 
-  // ---------------------------------------------------
-  // Totals
-  // ---------------------------------------------------
+      return Math.abs(
+        Math.round(value)
+      );
+    });
+
+  // ===================================================
+  // DEBUG
+  // ===================================================
+
+  console.log(
+    "🔥 WEEKLY ENERGY CHART DATA:",
+    chartData
+  );
+
+  console.log(
+    "🍽️ CONSUMED VALUES:",
+    consumedValues
+  );
+
+  console.log(
+    "🔥 BURNED VALUES:",
+    burnedValues
+  );
+
+  // ===================================================
+  // TOTAL CONSUMED
+  // ===================================================
 
   const totalConsumed =
     consumedValues.reduce(
@@ -111,6 +155,10 @@ export default function WeeklyEnergyCard({
       0
     );
 
+  // ===================================================
+  // TOTAL BURNED
+  // ===================================================
+
   const totalBurned =
     burnedValues.reduce(
       (sum, value) =>
@@ -118,13 +166,19 @@ export default function WeeklyEnergyCard({
       0
     );
 
+  // ===================================================
+  // NET ENERGY
+  //
+  // Consumed - Burned
+  // ===================================================
+
   const netEnergy =
     totalConsumed -
     totalBurned;
 
-  // ---------------------------------------------------
-  // Current week average
-  // ---------------------------------------------------
+  // ===================================================
+  // AVERAGES
+  // ===================================================
 
   const averageConsumed =
     Math.round(
@@ -136,9 +190,9 @@ export default function WeeklyEnergyCard({
       totalBurned / 7
     );
 
-  // ---------------------------------------------------
-  // Chart
-  // ---------------------------------------------------
+  // ===================================================
+  // RENDER
+  // ===================================================
 
   return (
     <View style={styles.card}>
@@ -183,9 +237,9 @@ export default function WeeklyEnergyCard({
 
       <View style={styles.summaryRow}>
 
-        {/* -----------------------------------------------
+        {/* =================================================
             CONSUMED
-        ----------------------------------------------- */}
+        ================================================= */}
 
         <View
           style={[
@@ -193,9 +247,11 @@ export default function WeeklyEnergyCard({
             styles.consumedBox,
           ]}
         >
+
           <View
             style={styles.summaryTop}
           >
+
             <View
               style={[
                 styles.summaryIcon,
@@ -214,11 +270,13 @@ export default function WeeklyEnergyCard({
             >
               Consumed
             </Text>
+
           </View>
 
           <View
             style={styles.valueRow}
           >
+
             <Text
               style={styles.summaryValue}
             >
@@ -230,19 +288,21 @@ export default function WeeklyEnergyCard({
             >
               kcal
             </Text>
+
           </View>
 
           <Text
             style={styles.average}
           >
-            {averageConsumed.toLocaleString()}
-            {" "}avg/day
+            {averageConsumed.toLocaleString()}{" "}
+            avg/day
           </Text>
+
         </View>
 
-        {/* -----------------------------------------------
+        {/* =================================================
             BURNED
-        ----------------------------------------------- */}
+        ================================================= */}
 
         <View
           style={[
@@ -250,9 +310,11 @@ export default function WeeklyEnergyCard({
             styles.burnedBox,
           ]}
         >
+
           <View
             style={styles.summaryTop}
           >
+
             <View
               style={[
                 styles.summaryIcon,
@@ -271,11 +333,13 @@ export default function WeeklyEnergyCard({
             >
               Burned
             </Text>
+
           </View>
 
           <View
             style={styles.valueRow}
           >
+
             <Text
               style={styles.summaryValue}
             >
@@ -287,14 +351,16 @@ export default function WeeklyEnergyCard({
             >
               kcal
             </Text>
+
           </View>
 
           <Text
             style={styles.average}
           >
-            {averageBurned.toLocaleString()}
-            {" "}avg/day
+            {averageBurned.toLocaleString()}{" "}
+            avg/day
           </Text>
+
         </View>
 
       </View>
@@ -306,9 +372,11 @@ export default function WeeklyEnergyCard({
       <View
         style={styles.netEnergyCard}
       >
+
         <View
           style={styles.netLeft}
         >
+
           <View
             style={styles.netIcon}
           >
@@ -328,6 +396,7 @@ export default function WeeklyEnergyCard({
           </View>
 
           <View>
+
             <Text
               style={styles.netTitle}
             >
@@ -339,12 +408,17 @@ export default function WeeklyEnergyCard({
             >
               Consumed − Burned
             </Text>
+
           </View>
+
         </View>
 
         <View
-          style={styles.netValueContainer}
+          style={
+            styles.netValueContainer
+          }
         >
+
           <Text
             style={[
               styles.netValue,
@@ -367,16 +441,19 @@ export default function WeeklyEnergyCard({
           >
             kcal
           </Text>
+
         </View>
+
       </View>
 
       {/* =================================================
-          CHART TITLE
+          CHART HEADER
       ================================================= */}
 
       <View
         style={styles.chartHeader}
       >
+
         <Text
           style={styles.chartTitle}
         >
@@ -388,6 +465,7 @@ export default function WeeklyEnergyCard({
         >
           Current week
         </Text>
+
       </View>
 
       {/* =================================================
@@ -397,11 +475,13 @@ export default function WeeklyEnergyCard({
       <View
         style={styles.chartWrapper}
       >
+
         <BarChart
           data={{
             labels: chartData.map(
-              (day) =>
-                day.label
+              (day, index) =>
+                day.label ||
+                labels[index]
             ),
 
             datasets: [
@@ -443,6 +523,8 @@ export default function WeeklyEnergyCard({
 
           yAxisSuffix=""
 
+          segments={4}
+
           chartConfig={{
             backgroundColor:
               WHITE,
@@ -467,8 +549,6 @@ export default function WeeklyEnergyCard({
 
             barPercentage: 0.38,
 
-           // group: 2,
-
             propsForBackgroundLines:
               {
                 stroke:
@@ -480,6 +560,7 @@ export default function WeeklyEnergyCard({
 
             propsForLabels: {
               fontSize: 10,
+
               fontWeight:
                 "600",
             },
@@ -489,6 +570,7 @@ export default function WeeklyEnergyCard({
             styles.chart
           }
         />
+
       </View>
 
       {/* =================================================
@@ -496,14 +578,19 @@ export default function WeeklyEnergyCard({
       ================================================= */}
 
       <View
-        style={styles.legendContainer}
+        style={
+          styles.legendContainer
+        }
       >
 
-        {/* Consumed */}
+        {/* =================================================
+            CONSUMED
+        ================================================= */}
 
         <View
           style={styles.legendItem}
         >
+
           <View
             style={[
               styles.legendDot,
@@ -519,13 +606,17 @@ export default function WeeklyEnergyCard({
           >
             Consumed
           </Text>
+
         </View>
 
-        {/* Burned */}
+        {/* =================================================
+            BURNED
+        ================================================= */}
 
         <View
           style={styles.legendItem}
         >
+
           <View
             style={[
               styles.legendDot,
@@ -541,7 +632,12 @@ export default function WeeklyEnergyCard({
           >
             Burned
           </Text>
+
         </View>
+
+        {/* =================================================
+            UNIT
+        ================================================= */}
 
         <Text
           style={styles.legendHint}
@@ -573,12 +669,14 @@ const styles =
       borderRadius: 22,
 
       borderWidth: 1,
+
       borderColor:
         BORDER,
 
       marginTop: 18,
 
       paddingTop: 17,
+
       paddingBottom: 15,
 
       overflow: "hidden",
@@ -591,6 +689,7 @@ const styles =
 
       shadowOffset: {
         width: 0,
+
         height: 4,
       },
 
@@ -615,6 +714,7 @@ const styles =
 
     headerIcon: {
       width: 42,
+
       height: 42,
 
       borderRadius: 14,
@@ -698,6 +798,7 @@ const styles =
 
     summaryIcon: {
       width: 28,
+
       height: 28,
 
       borderRadius: 9,
@@ -808,6 +909,7 @@ const styles =
 
     netIcon: {
       width: 32,
+
       height: 32,
 
       borderRadius: 10,
@@ -940,6 +1042,7 @@ const styles =
 
     legendDot: {
       width: 8,
+
       height: 8,
 
       borderRadius: 4,
@@ -956,7 +1059,8 @@ const styles =
     },
 
     legendHint: {
-      marginLeft: "auto",
+      marginLeft:
+        "auto",
 
       fontSize: 9,
 

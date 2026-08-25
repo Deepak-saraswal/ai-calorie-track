@@ -686,7 +686,7 @@ export async function getCurrentWeekWater(
         userId,
         date
       );
-
+     
       // -----------------------------------------------
       // Sum water from all logs
       // -----------------------------------------------

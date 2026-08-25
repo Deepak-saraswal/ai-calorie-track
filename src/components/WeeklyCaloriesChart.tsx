@@ -1,8 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Dimensions, StyleSheet, Text, View } from "react-native";
+import {
+    Dimensions,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
 import { BarChart } from "react-native-chart-kit";
-import { WeeklyCaloriesDay } from "../lib/dailyLogService";
 
+import { WeeklyEnergyDay } from "../lib/dailyLogService";
 
 // =====================================================
 // COLORS
@@ -15,22 +20,21 @@ const TEXT = "#252825";
 const MUTED = "#7B817C";
 const WHITE = "#FFFFFF";
 const BORDER = "#E5EAE5";
-const SOFT_GREY = "#F5F7F5";
+const ORANGE = "#FF7A00";
+const LIGHT_ORANGE = "#FFF3E8";
 
 // =====================================================
-// CONSTANTS
+// SCREEN
 // =====================================================
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
-
-const CHART_WIDTH = SCREEN_WIDTH - 36;
+const screenWidth = Dimensions.get("window").width;
 
 // =====================================================
 // TYPES
 // =====================================================
 
 interface WeeklyCaloriesChartProps {
-  data: WeeklyCaloriesDay[];
+  data: WeeklyEnergyDay[];
 }
 
 // =====================================================
@@ -40,74 +44,160 @@ interface WeeklyCaloriesChartProps {
 export default function WeeklyCaloriesChart({
   data,
 }: WeeklyCaloriesChartProps) {
-  // ---------------------------------------------------
-  // Always render 7 days
-  // ---------------------------------------------------
+
+  // ===================================================
+  // DAYS
+  // Sunday -> Saturday
+  // ===================================================
+
+  const labels = [
+    "S",
+    "M",
+    "T",
+    "W",
+    "T",
+    "F",
+    "S",
+  ];
+
+  // ===================================================
+  // Always create exactly 7 days
+  // ===================================================
 
   const chartData = Array.from(
     { length: 7 },
-    (_, index) =>
-      data[index] ?? {
-        date: new Date(),
-        dateKey: "",
-        label: ["S", "M", "T", "W", "T", "F", "S"][index],
-        calories: 0,
-      }
+    (_, index) => {
+      const day = data?.[index];
+
+      return {
+        label:
+          day?.label || labels[index],
+
+        consumed: Number(
+          day?.consumed ?? 0
+        ),
+
+        burned: Number(
+          day?.burned ?? 0
+        ),
+      };
+    }
   );
 
-  // ---------------------------------------------------
-  // Calories
-  // ---------------------------------------------------
+  // ===================================================
+  // IMPORTANT
+  //
+  // Your service currently returns burned as NEGATIVE:
+  //
+  // burned: -269
+  //
+  // For the chart we want:
+  //
+  // burned = 269
+  //
+  // ===================================================
 
-  const calories = chartData.map((day) =>
-    Math.max(0, Math.round(day.calories))
-  );
+  const consumedValues =
+    chartData.map((day) =>
+      Math.max(
+        0,
+        Math.round(
+          Math.abs(day.consumed)
+        )
+      )
+    );
 
-  const labels = chartData.map(
-    (day) => day.label
-  );
+  const burnedValues =
+    chartData.map((day) =>
+      Math.max(
+        0,
+        Math.round(
+          Math.abs(day.burned)
+        )
+      )
+    );
 
-  // ---------------------------------------------------
-  // Statistics
-  // ---------------------------------------------------
+  // ===================================================
+  // TOTALS
+  // ===================================================
 
-  const totalCalories = calories.reduce(
-    (sum, value) => sum + value,
-    0
-  );
+  const totalConsumed =
+    consumedValues.reduce(
+      (sum, value) =>
+        sum + value,
+      0
+    );
 
-  const averageCalories = Math.round(
-    totalCalories / 7
-  );
+  const totalBurned =
+    burnedValues.reduce(
+      (sum, value) =>
+        sum + value,
+      0
+    );
+
+  // ===================================================
+  // NET
+  //
+  // Consumed - Burned
+  // ===================================================
+
+  const netCalories =
+    totalConsumed -
+    totalBurned;
+
+  // ===================================================
+  // DAILY AVERAGES
+  // ===================================================
+
+  const averageConsumed =
+    Math.round(
+      totalConsumed / 7
+    );
+
+  const averageBurned =
+    Math.round(
+      totalBurned / 7
+    );
+
+  // ===================================================
+  // RENDER
+  // ===================================================
 
   return (
     <View style={styles.card}>
+
       {/* =================================================
           HEADER
       ================================================= */}
 
       <View style={styles.header}>
+
         <View style={styles.headerLeft}>
+
           <View style={styles.iconContainer}>
             <Ionicons
-              name="flame"
-              size={20}
+              name="flame-outline"
+              size={21}
               color={GREEN}
             />
           </View>
 
           <View>
+
             <Text style={styles.title}>
-              Calories
+              Weekly Calories
             </Text>
 
             <Text style={styles.subtitle}>
-              This week
+              Consumed vs burned
             </Text>
+
           </View>
+
         </View>
 
         <View style={styles.weekBadge}>
+
           <Ionicons
             name="calendar-outline"
             size={13}
@@ -117,7 +207,9 @@ export default function WeeklyCaloriesChart({
           <Text style={styles.weekBadgeText}>
             7 days
           </Text>
+
         </View>
+
       </View>
 
       {/* =================================================
@@ -125,109 +217,350 @@ export default function WeeklyCaloriesChart({
       ================================================= */}
 
       <View style={styles.summaryRow}>
-        <View>
-          <Text style={styles.summaryLabel}>
-            Total consumed
-          </Text>
 
-          <View style={styles.totalRow}>
-            <Text style={styles.totalValue}>
-              {totalCalories.toLocaleString()}
+        {/* CONSUMED */}
+
+        <View
+          style={[
+            styles.summaryBox,
+            styles.consumedBox,
+          ]}
+        >
+
+          <View style={styles.summaryTop}>
+
+            <View
+              style={[
+                styles.summaryIcon,
+                styles.consumedIcon,
+              ]}
+            >
+              <Ionicons
+                name="restaurant-outline"
+                size={16}
+                color={GREEN}
+              />
+            </View>
+
+            <Text style={styles.summaryLabel}>
+              Consumed
             </Text>
 
-            <Text style={styles.totalUnit}>
+          </View>
+
+          <View style={styles.valueRow}>
+
+            <Text style={styles.summaryValue}>
+              {totalConsumed.toLocaleString()}
+            </Text>
+
+            <Text style={styles.unit}>
               kcal
             </Text>
+
           </View>
+
+          <Text style={styles.average}>
+            {averageConsumed.toLocaleString()}
+            {" "}avg/day
+          </Text>
+
         </View>
 
-        <View style={styles.averageBox}>
-          <Text style={styles.averageLabel}>
-            Daily avg
+        {/* BURNED */}
+
+        <View
+          style={[
+            styles.summaryBox,
+            styles.burnedBox,
+          ]}
+        >
+
+          <View style={styles.summaryTop}>
+
+            <View
+              style={[
+                styles.summaryIcon,
+                styles.burnedIcon,
+              ]}
+            >
+              <Ionicons
+                name="flame-outline"
+                size={16}
+                color={ORANGE}
+              />
+            </View>
+
+            <Text style={styles.summaryLabel}>
+              Burned
+            </Text>
+
+          </View>
+
+          <View style={styles.valueRow}>
+
+            <Text style={styles.summaryValue}>
+              {totalBurned.toLocaleString()}
+            </Text>
+
+            <Text style={styles.unit}>
+              kcal
+            </Text>
+
+          </View>
+
+          <Text style={styles.average}>
+            {averageBurned.toLocaleString()}
+            {" "}avg/day
           </Text>
 
-          <Text style={styles.averageValue}>
-            {averageCalories.toLocaleString()}
+        </View>
+
+      </View>
+
+      {/* =================================================
+          NET
+      ================================================= */}
+
+      <View style={styles.netCard}>
+
+        <View style={styles.netLeft}>
+
+          <View style={styles.netIcon}>
+
+            <Ionicons
+              name={
+                netCalories >= 0
+                  ? "trending-up-outline"
+                  : "trending-down-outline"
+              }
+              size={18}
+              color={
+                netCalories >= 0
+                  ? GREEN
+                  : ORANGE
+              }
+            />
+
+          </View>
+
+          <View>
+
+            <Text style={styles.netTitle}>
+              Net Calories
+            </Text>
+
+            <Text style={styles.netSubtitle}>
+              Consumed − Burned
+            </Text>
+
+          </View>
+
+        </View>
+
+        <View style={styles.netValueContainer}>
+
+          <Text
+            style={[
+              styles.netValue,
+              {
+                color:
+                  netCalories >= 0
+                    ? DARK_GREEN
+                    : ORANGE,
+              },
+            ]}
+          >
+            {netCalories > 0
+              ? "+"
+              : ""}
+            {netCalories.toLocaleString()}
           </Text>
 
-          <Text style={styles.averageUnit}>
+          <Text style={styles.netUnit}>
             kcal
           </Text>
+
         </View>
+
+      </View>
+
+      {/* =================================================
+          CHART TITLE
+      ================================================= */}
+
+      <View style={styles.chartHeader}>
+
+        <Text style={styles.chartTitle}>
+          Daily calories
+        </Text>
+
+        <Text style={styles.chartSubtitle}>
+          Current week
+        </Text>
+
       </View>
 
       {/* =================================================
           CHART
       ================================================= */}
 
-      <View style={styles.chartContainer}>
+      <View style={styles.chartWrapper}>
+
         <BarChart
           data={{
-            labels,
+            labels: chartData.map(
+              (day) =>
+                day.label
+            ),
+
             datasets: [
+
+              // CONSUMED
               {
-                data: calories,
+                data:
+                  consumedValues,
+
+                color: () =>
+                  GREEN,
               },
+
+              // BURNED
+              {
+                data:
+                  burnedValues,
+
+                color: () =>
+                  ORANGE,
+              },
+
             ],
           }}
-          width={CHART_WIDTH}
-          height={215}
+
+          width={
+            screenWidth - 36
+          }
+
+          height={230}
+
           fromZero
-          showValuesOnTopOfBars
+
           withInnerLines
+
           withVerticalLabels
+
           withHorizontalLabels
+
           yAxisLabel=""
+
           yAxisSuffix=""
+
           segments={4}
+
           chartConfig={{
-            backgroundColor: WHITE,
-            backgroundGradientFrom: WHITE,
-            backgroundGradientTo: WHITE,
+
+            backgroundColor:
+              WHITE,
+
+            backgroundGradientFrom:
+              WHITE,
+
+            backgroundGradientTo:
+              WHITE,
 
             decimalPlaces: 0,
 
-            color: () => GREEN,
+            color: (
+              opacity = 1
+            ) =>
+              `rgba(33, 153, 49, ${opacity})`,
 
-            labelColor: () => MUTED,
+            labelColor: (
+              opacity = 1
+            ) =>
+              `rgba(123, 129, 124, ${opacity})`,
 
-            fillShadowGradient: GREEN,
-            fillShadowGradientOpacity: 0.95,
+            barPercentage: 0.42,
 
-            barPercentage: 0.55,
+            propsForBackgroundLines:
+              {
+                stroke:
+                  "#E8EDE8",
 
-            propsForBackgroundLines: {
-              stroke: "#EEF1EE",
-              strokeWidth: "1",
-              strokeDasharray: "4 4",
-            },
+                strokeWidth:
+                  "1",
+
+                strokeDasharray:
+                  "4 4",
+              },
 
             propsForLabels: {
               fontSize: 10,
-              fontWeight: "600",
+              fontWeight:
+                "600",
             },
+
           }}
-          style={styles.chart}
+
+          style={
+            styles.chart
+          }
         />
+
       </View>
 
       {/* =================================================
-          FOOTER
+          LEGEND
       ================================================= */}
 
-      <View style={styles.footer}>
-        <View style={styles.footerLeft}>
-          <View style={styles.footerDot} />
+      <View style={styles.legendContainer}>
 
-          <Text style={styles.footerText}>
-            Calories consumed
+        {/* Consumed */}
+
+        <View style={styles.legendItem}>
+
+          <View
+            style={[
+              styles.legendDot,
+              {
+                backgroundColor:
+                  GREEN,
+              },
+            ]}
+          />
+
+          <Text style={styles.legendText}>
+            Consumed
           </Text>
+
         </View>
 
-        <Text style={styles.footerText}>
-          Sun – Sat
+        {/* Burned */}
+
+        <View style={styles.legendItem}>
+
+          <View
+            style={[
+              styles.legendDot,
+              {
+                backgroundColor:
+                  ORANGE,
+              },
+            ]}
+          />
+
+          <Text style={styles.legendText}>
+            Burned
+          </Text>
+
+        </View>
+
+        <Text style={styles.legendHint}>
+          kcal
         </Text>
+
       </View>
+
     </View>
   );
 }
@@ -236,244 +569,414 @@ export default function WeeklyCaloriesChart({
 // STYLES
 // =====================================================
 
-const styles = StyleSheet.create({
-  // ===================================================
-  // CARD
-  // ===================================================
+const styles =
+  StyleSheet.create({
 
-  card: {
-    backgroundColor: WHITE,
+    card: {
+      backgroundColor:
+        WHITE,
 
-    borderRadius: 22,
+      borderRadius: 22,
 
-    borderWidth: 1,
-    borderColor: BORDER,
+      borderWidth: 1,
 
-    marginTop: 14,
+      borderColor:
+        BORDER,
 
-    paddingTop: 17,
-    paddingBottom: 13,
+      marginTop: 14,
 
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    shadowOffset: {
-      width: 0,
-      height: 4,
+      paddingTop: 17,
+
+      paddingBottom: 15,
+
+      overflow: "hidden",
+
+      shadowColor: "#000",
+
+      shadowOpacity: 0.04,
+
+      shadowRadius: 10,
+
+      shadowOffset: {
+        width: 0,
+        height: 4,
+      },
+
+      elevation: 2,
     },
 
-    elevation: 2,
-  },
+    // =================================================
+    // HEADER
+    // =================================================
 
-  // ===================================================
-  // HEADER
-  // ===================================================
+    header: {
+      flexDirection: "row",
 
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+      alignItems: "center",
 
-    paddingHorizontal: 17,
-  },
+      justifyContent:
+        "space-between",
 
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+      paddingHorizontal: 17,
+    },
 
-  iconContainer: {
-    width: 42,
-    height: 42,
+    headerLeft: {
+      flexDirection: "row",
 
-    borderRadius: 14,
+      alignItems: "center",
+    },
 
-    backgroundColor: LIGHT_GREEN,
+    iconContainer: {
+      width: 42,
 
-    alignItems: "center",
-    justifyContent: "center",
+      height: 42,
 
-    marginRight: 10,
-  },
+      borderRadius: 14,
 
-  title: {
-    fontSize: 16,
-    fontWeight: "800",
+      backgroundColor:
+        LIGHT_GREEN,
 
-    color: TEXT,
-  },
+      alignItems: "center",
 
-  subtitle: {
-    fontSize: 11,
+      justifyContent: "center",
 
-    color: MUTED,
+      marginRight: 10,
+    },
 
-    marginTop: 2,
-  },
+    title: {
+      fontSize: 16,
 
-  weekBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+      fontWeight: "800",
 
-    backgroundColor: LIGHT_GREEN,
+      color: TEXT,
+    },
 
-    borderRadius: 20,
+    subtitle: {
+      fontSize: 11,
 
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-  },
+      color: MUTED,
 
-  weekBadgeText: {
-    fontSize: 10,
+      marginTop: 3,
+    },
 
-    fontWeight: "700",
+    weekBadge: {
+      flexDirection: "row",
 
-    color: DARK_GREEN,
+      alignItems: "center",
 
-    marginLeft: 4,
-  },
+      backgroundColor:
+        LIGHT_GREEN,
 
-  // ===================================================
-  // SUMMARY
-  // ===================================================
+      borderRadius: 20,
 
-  summaryRow: {
-    flexDirection: "row",
+      paddingHorizontal: 9,
 
-    alignItems: "center",
+      paddingVertical: 6,
+    },
 
-    justifyContent: "space-between",
+    weekBadgeText: {
+      fontSize: 10,
 
-    marginTop: 18,
+      fontWeight: "700",
 
-    paddingHorizontal: 17,
-  },
+      color: DARK_GREEN,
 
-  summaryLabel: {
-    fontSize: 11,
+      marginLeft: 4,
+    },
 
-    color: MUTED,
+    // =================================================
+    // SUMMARY
+    // =================================================
 
-    marginBottom: 2,
-  },
+    summaryRow: {
+      flexDirection: "row",
 
-  totalRow: {
-    flexDirection: "row",
+      gap: 10,
 
-    alignItems: "baseline",
-  },
+      paddingHorizontal: 17,
 
-  totalValue: {
-    fontSize: 27,
+      marginTop: 15,
+    },
 
-    fontWeight: "900",
+    summaryBox: {
+      flex: 1,
 
-    color: TEXT,
+      borderRadius: 17,
 
-    letterSpacing: -0.8,
-  },
+      padding: 12,
 
-  totalUnit: {
-    fontSize: 11,
+      borderWidth: 1,
+    },
 
-    fontWeight: "700",
+    consumedBox: {
+      backgroundColor:
+        "#F6FBF7",
 
-    color: MUTED,
+      borderColor:
+        "#DDEBDF",
+    },
 
-    marginLeft: 5,
-  },
+    burnedBox: {
+      backgroundColor:
+        "#FFF9F4",
 
-  averageBox: {
-    minWidth: 82,
+      borderColor:
+        "#F3E1D2",
+    },
 
-    backgroundColor: SOFT_GREY,
+    summaryTop: {
+      flexDirection: "row",
 
-    borderRadius: 13,
+      alignItems: "center",
+    },
 
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
+    summaryIcon: {
+      width: 28,
 
-  averageLabel: {
-    fontSize: 9,
+      height: 28,
 
-    color: MUTED,
+      borderRadius: 9,
 
-    marginBottom: 1,
-  },
+      alignItems: "center",
 
-  averageValue: {
-    fontSize: 14,
+      justifyContent: "center",
 
-    fontWeight: "800",
+      marginRight: 7,
+    },
 
-    color: DARK_GREEN,
-  },
+    consumedIcon: {
+      backgroundColor:
+        LIGHT_GREEN,
+    },
 
-  averageUnit: {
-    fontSize: 8,
+    burnedIcon: {
+      backgroundColor:
+        LIGHT_ORANGE,
+    },
 
-    color: MUTED,
+    summaryLabel: {
+      fontSize: 11,
 
-    marginTop: -1,
-  },
+      fontWeight: "700",
 
-  // ===================================================
-  // CHART
-  // ===================================================
+      color: MUTED,
+    },
 
-  chartContainer: {
-    marginTop: 8,
+    valueRow: {
+      flexDirection: "row",
 
-    alignItems: "center",
+      alignItems: "baseline",
 
-    overflow: "hidden",
-  },
+      marginTop: 7,
+    },
 
-  chart: {
-    marginLeft: -4,
+    summaryValue: {
+      fontSize: 19,
 
-    borderRadius: 18,
-  },
+      fontWeight: "800",
 
-  // ===================================================
-  // FOOTER
-  // ===================================================
+      color: TEXT,
+    },
 
-  footer: {
-    flexDirection: "row",
+    unit: {
+      fontSize: 9,
 
-    alignItems: "center",
+      fontWeight: "600",
 
-    justifyContent: "space-between",
+      color: MUTED,
 
-    paddingHorizontal: 17,
+      marginLeft: 3,
+    },
 
-    marginTop: -2,
-  },
+    average: {
+      fontSize: 9,
 
-  footerLeft: {
-    flexDirection: "row",
+      color: MUTED,
 
-    alignItems: "center",
-  },
+      marginTop: 3,
+    },
 
-  footerDot: {
-    width: 7,
-    height: 7,
+    // =================================================
+    // NET
+    // =================================================
 
-    borderRadius: 4,
+    netCard: {
+      marginHorizontal: 17,
 
-    backgroundColor: GREEN,
+      marginTop: 10,
 
-    marginRight: 6,
-  },
+      paddingHorizontal: 12,
 
-  footerText: {
-    fontSize: 9,
+      paddingVertical: 11,
 
-    color: MUTED,
+      borderRadius: 17,
 
-    fontWeight: "600",
-  },
-});
+      backgroundColor:
+        "#FAFBFA",
+
+      borderWidth: 1,
+
+      borderColor:
+        BORDER,
+
+      flexDirection: "row",
+
+      alignItems: "center",
+
+      justifyContent:
+        "space-between",
+    },
+
+    netLeft: {
+      flexDirection: "row",
+
+      alignItems: "center",
+    },
+
+    netIcon: {
+      width: 32,
+
+      height: 32,
+
+      borderRadius: 10,
+
+      backgroundColor:
+        LIGHT_GREEN,
+
+      alignItems: "center",
+
+      justifyContent: "center",
+
+      marginRight: 9,
+    },
+
+    netTitle: {
+      fontSize: 12,
+
+      fontWeight: "800",
+
+      color: TEXT,
+    },
+
+    netSubtitle: {
+      fontSize: 9,
+
+      color: MUTED,
+
+      marginTop: 2,
+    },
+
+    netValueContainer: {
+      alignItems: "flex-end",
+    },
+
+    netValue: {
+      fontSize: 18,
+
+      fontWeight: "900",
+    },
+
+    netUnit: {
+      fontSize: 9,
+
+      color: MUTED,
+
+      marginTop: 1,
+    },
+
+    // =================================================
+    // CHART
+    // =================================================
+
+    chartHeader: {
+      paddingHorizontal: 17,
+
+      marginTop: 18,
+
+      marginBottom: 2,
+
+      flexDirection: "row",
+
+      alignItems: "baseline",
+
+      justifyContent:
+        "space-between",
+    },
+
+    chartTitle: {
+      fontSize: 13,
+
+      fontWeight: "800",
+
+      color: TEXT,
+    },
+
+    chartSubtitle: {
+      fontSize: 9,
+
+      color: MUTED,
+    },
+
+    chartWrapper: {
+      marginTop: 4,
+
+      marginLeft: -8,
+
+      marginRight: -8,
+
+      overflow: "hidden",
+    },
+
+    chart: {
+      borderRadius: 18,
+    },
+
+    // =================================================
+    // LEGEND
+    // =================================================
+
+    legendContainer: {
+      flexDirection: "row",
+
+      alignItems: "center",
+
+      paddingHorizontal: 17,
+
+      marginTop: -2,
+    },
+
+    legendItem: {
+      flexDirection: "row",
+
+      alignItems: "center",
+
+      marginRight: 17,
+    },
+
+    legendDot: {
+      width: 8,
+
+      height: 8,
+
+      borderRadius: 4,
+
+      marginRight: 6,
+    },
+
+    legendText: {
+      fontSize: 10,
+
+      color: MUTED,
+
+      fontWeight: "600",
+    },
+
+    legendHint: {
+      marginLeft: "auto",
+
+      fontSize: 9,
+
+      color: MUTED,
+    },
+
+  });
