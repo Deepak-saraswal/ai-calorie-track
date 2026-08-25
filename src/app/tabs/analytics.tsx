@@ -111,6 +111,8 @@ export default function Analytics() {
   const [aiFoodSummary, setAiFoodSummary] =
   useState<WeeklyFoodSummary | null>(null);
 
+  
+
 const [aiFoodLoading, setAiFoodLoading] =
   useState(false);
   // ===================================================
@@ -357,13 +359,22 @@ async function loadAIFoodSummary(
       // ===============================================
 
       const energy =
-        await getCurrentWeekEnergy(
-          user.id
-        );
+  await getCurrentWeekEnergy(
+    user.id
+  );
 
-      setWeeklyEnergy(
-        energy
-      );
+console.log(
+  "🔥 ANALYTICS WEEKLY ENERGY:",
+  JSON.stringify(
+    energy,
+    null,
+    2
+  )
+);
+
+setWeeklyEnergy(
+  energy
+);
       // ===============================================
 // Load weekly water
 // ===============================================
@@ -694,13 +705,14 @@ setWeeklyWater(water);
             WEEKLY CALORIES
         ================================================= */}
 
-        <WeeklyCaloriesChart
-          data={weeklyCalories}
-        />
- <AIFoodSummary
+   <WeeklyCaloriesChart
+  data={weeklyEnergy}
+/>
+<AIFoodSummary
   data={aiFoodSummary}
   loading={aiFoodLoading}
 />
+
         {/* =================================================
             WEEKLY ENERGY
         ================================================= */}
@@ -708,9 +720,9 @@ setWeeklyWater(water);
 
 
 
-        <WeeklyEnergyCard
-          data={weeklyEnergy}
-        />
+    <WeeklyEnergyCard
+  data={weeklyEnergy}
+/>
 
 <WeeklyWaterCard
   data={weeklyWater}

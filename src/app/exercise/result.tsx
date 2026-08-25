@@ -2,12 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    Pressable,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 import { useUser } from "@clerk/expo";
@@ -266,6 +266,7 @@ const styles = StyleSheet.create({
   },
 
   screen: {
+    marginTop: 40,
     flex: 1,
     backgroundColor: BACKGROUND,
   },
