@@ -1,11 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import {
-    Dimensions,
-    StyleSheet,
-    Text,
-    View,
+  Dimensions,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { BarChart } from "react-native-chart-kit";
+import { LineChart } from "react-native-chart-kit";
 
 import { WeeklyEnergyDay } from "../lib/dailyLogService";
 
@@ -25,6 +25,8 @@ const BORDER = "#E5EAE5";
 
 const ORANGE = "#FF7A00";
 const LIGHT_ORANGE = "#FFF3E8";
+
+const GRAPH_BG = "#F8FAF8";
 
 // =====================================================
 // SCREEN
@@ -48,9 +50,9 @@ interface WeeklyEnergyCardProps {
 export default function WeeklyEnergyCard({
   data,
 }: WeeklyEnergyCardProps) {
+
   // ===================================================
   // WEEK LABELS
-  // Sunday -> Saturday
   // ===================================================
 
   const labels = [
@@ -64,88 +66,75 @@ export default function WeeklyEnergyCard({
   ];
 
   // ===================================================
-  // ALWAYS KEEP EXACTLY 7 DAYS
+  // NORMALIZE 7 DAYS
   // ===================================================
 
   const chartData = Array.from(
     { length: 7 },
     (_, index) => {
-      return (
-        data[index] ?? {
-          date: new Date(),
-          dateKey: "",
-          label: labels[index],
-          consumed: 0,
-          burned: 0,
-        }
-      );
+
+      const day = data?.[index];
+
+      return {
+        date:
+          day?.date ??
+          new Date(),
+
+        dateKey:
+          day?.dateKey ??
+          "",
+
+        label:
+          day?.label ??
+          labels[index],
+
+        consumed:
+          Number(
+            day?.consumed ?? 0
+          ),
+
+        burned:
+          Number(
+            day?.burned ?? 0
+          ),
+      };
     }
   );
 
   // ===================================================
-  // CONSUMED VALUES
+  // CONSUMED
   // ===================================================
 
   const consumedValues =
-    chartData.map((day) => {
-      const value = Number(
-        day.consumed ?? 0
-      );
-
-      return Math.max(
+    chartData.map((day) =>
+      Math.max(
         0,
-        Math.round(value)
-      );
-    });
+        Math.round(
+          Math.abs(
+            day.consumed
+          )
+        )
+      )
+    );
 
   // ===================================================
-  // BURNED VALUES
-  //
-  // IMPORTANT:
-  //
-  // Your service is currently returning:
-  //
-  // burned: -269
-  //
-  // For the UI, burned calories should be
-  // displayed as a positive amount:
-  //
-  // -269 -> 269
-  //
+  // BURNED
   // ===================================================
 
   const burnedValues =
-    chartData.map((day) => {
-      const value = Number(
-        day.burned ?? 0
-      );
-
-      return Math.abs(
-        Math.round(value)
-      );
-    });
-
-  // ===================================================
-  // DEBUG
-  // ===================================================
-
-  console.log(
-    "🔥 WEEKLY ENERGY CHART DATA:",
-    chartData
-  );
-
-  console.log(
-    "🍽️ CONSUMED VALUES:",
-    consumedValues
-  );
-
-  console.log(
-    "🔥 BURNED VALUES:",
-    burnedValues
-  );
+    chartData.map((day) =>
+      Math.max(
+        0,
+        Math.round(
+          Math.abs(
+            day.burned
+          )
+        )
+      )
+    );
 
   // ===================================================
-  // TOTAL CONSUMED
+  // TOTALS
   // ===================================================
 
   const totalConsumed =
@@ -155,10 +144,6 @@ export default function WeeklyEnergyCard({
       0
     );
 
-  // ===================================================
-  // TOTAL BURNED
-  // ===================================================
-
   const totalBurned =
     burnedValues.reduce(
       (sum, value) =>
@@ -167,9 +152,7 @@ export default function WeeklyEnergyCard({
     );
 
   // ===================================================
-  // NET ENERGY
-  //
-  // Consumed - Burned
+  // NET
   // ===================================================
 
   const netEnergy =
@@ -191,6 +174,33 @@ export default function WeeklyEnergyCard({
     );
 
   // ===================================================
+  // CHART LABELS
+  // ===================================================
+
+  const weekLabels =
+    chartData.map(
+      (day, index) =>
+        day.label ||
+        labels[index]
+    );
+
+  // ===================================================
+  // CHART
+  // ===================================================
+
+  const maxValue =
+    Math.max(
+      ...consumedValues,
+      ...burnedValues,
+      500
+    );
+
+  const chartMax =
+    Math.ceil(
+      maxValue / 500
+    ) * 500;
+
+  // ===================================================
   // RENDER
   // ===================================================
 
@@ -202,33 +212,45 @@ export default function WeeklyEnergyCard({
       ================================================= */}
 
       <View style={styles.header}>
+
         <View style={styles.headerLeft}>
 
-          <View
-            style={styles.headerIcon}
-          >
+          <View style={styles.headerIcon}>
             <Ionicons
-              name="flash-outline"
-              size={21}
+              name="flash"
+              size={20}
               color={GREEN}
             />
           </View>
 
           <View>
-            <Text
-              style={styles.title}
-            >
+
+            <Text style={styles.title}>
               Weekly Energy
             </Text>
 
-            <Text
-              style={styles.subtitle}
-            >
-              Calories consumed vs burned
+            <Text style={styles.subtitle}>
+              Your calorie activity this week
             </Text>
+
           </View>
 
         </View>
+
+        <View style={styles.daysBadge}>
+
+          <Ionicons
+            name="calendar-outline"
+            size={12}
+            color={DARK_GREEN}
+          />
+
+          <Text style={styles.daysBadgeText}>
+            7 days
+          </Text>
+
+        </View>
+
       </View>
 
       {/* =================================================
@@ -237,128 +259,88 @@ export default function WeeklyEnergyCard({
 
       <View style={styles.summaryRow}>
 
-        {/* =================================================
-            CONSUMED
-        ================================================= */}
+        {/* CONSUMED */}
 
         <View
           style={[
-            styles.summaryBox,
-            styles.consumedBox,
+            styles.summaryCard,
+            styles.consumedCard,
           ]}
         >
 
-          <View
-            style={styles.summaryTop}
-          >
+          <View style={styles.summaryHeader}>
 
-            <View
-              style={[
-                styles.summaryIcon,
-                styles.consumedIcon,
-              ]}
-            >
+            <View style={styles.greenIcon}>
               <Ionicons
                 name="restaurant-outline"
-                size={16}
+                size={15}
                 color={GREEN}
               />
             </View>
 
-            <Text
-              style={styles.summaryLabel}
-            >
+            <Text style={styles.summaryLabel}>
               Consumed
             </Text>
 
           </View>
 
-          <View
-            style={styles.valueRow}
-          >
+          <View style={styles.valueRow}>
 
-            <Text
-              style={styles.summaryValue}
-            >
+            <Text style={styles.value}>
               {totalConsumed.toLocaleString()}
             </Text>
 
-            <Text
-              style={styles.unit}
-            >
+            <Text style={styles.unit}>
               kcal
             </Text>
 
           </View>
 
-          <Text
-            style={styles.average}
-          >
-            {averageConsumed.toLocaleString()}{" "}
-            avg/day
+          <Text style={styles.average}>
+            {averageConsumed.toLocaleString()} avg/day
           </Text>
 
         </View>
 
-        {/* =================================================
-            BURNED
-        ================================================= */}
+        {/* BURNED */}
 
         <View
           style={[
-            styles.summaryBox,
-            styles.burnedBox,
+            styles.summaryCard,
+            styles.burnedCard,
           ]}
         >
 
-          <View
-            style={styles.summaryTop}
-          >
+          <View style={styles.summaryHeader}>
 
-            <View
-              style={[
-                styles.summaryIcon,
-                styles.burnedIcon,
-              ]}
-            >
+            <View style={styles.orangeIcon}>
               <Ionicons
                 name="flame-outline"
-                size={16}
+                size={15}
                 color={ORANGE}
               />
             </View>
 
-            <Text
-              style={styles.summaryLabel}
-            >
+            <Text style={styles.summaryLabel}>
               Burned
             </Text>
 
           </View>
 
-          <View
-            style={styles.valueRow}
-          >
+          <View style={styles.valueRow}>
 
-            <Text
-              style={styles.summaryValue}
-            >
+            <Text style={styles.value}>
               {totalBurned.toLocaleString()}
             </Text>
 
-            <Text
-              style={styles.unit}
-            >
+            <Text style={styles.unit}>
               kcal
             </Text>
 
           </View>
 
-          <Text
-            style={styles.average}
-          >
-            {averageBurned.toLocaleString()}{" "}
-            avg/day
+          <Text style={styles.average}>
+            {averageBurned.toLocaleString()} avg/day
           </Text>
 
         </View>
@@ -369,43 +351,45 @@ export default function WeeklyEnergyCard({
           NET ENERGY
       ================================================= */}
 
-      <View
-        style={styles.netEnergyCard}
-      >
+      <View style={styles.netCard}>
 
-        <View
-          style={styles.netLeft}
-        >
+        <View style={styles.netLeft}>
 
           <View
-            style={styles.netIcon}
+            style={[
+              styles.netIcon,
+              {
+                backgroundColor:
+                  netEnergy >= 0
+                    ? LIGHT_GREEN
+                    : LIGHT_ORANGE,
+              },
+            ]}
           >
+
             <Ionicons
               name={
                 netEnergy >= 0
                   ? "trending-up-outline"
                   : "trending-down-outline"
               }
-              size={18}
+              size={17}
               color={
                 netEnergy >= 0
                   ? GREEN
                   : ORANGE
               }
             />
+
           </View>
 
           <View>
 
-            <Text
-              style={styles.netTitle}
-            >
+            <Text style={styles.netTitle}>
               Net Energy
             </Text>
 
-            <Text
-              style={styles.netSubtitle}
-            >
+            <Text style={styles.netSubtitle}>
               Consumed − Burned
             </Text>
 
@@ -413,11 +397,7 @@ export default function WeeklyEnergyCard({
 
         </View>
 
-        <View
-          style={
-            styles.netValueContainer
-          }
-        >
+        <View style={styles.netRight}>
 
           <Text
             style={[
@@ -436,9 +416,7 @@ export default function WeeklyEnergyCard({
             {netEnergy.toLocaleString()}
           </Text>
 
-          <Text
-            style={styles.netUnit}
-          >
+          <Text style={styles.netUnit}>
             kcal
           </Text>
 
@@ -447,93 +425,145 @@ export default function WeeklyEnergyCard({
       </View>
 
       {/* =================================================
-          CHART HEADER
+          GRAPH HEADER
       ================================================= */}
 
-      <View
-        style={styles.chartHeader}
-      >
+      <View style={styles.graphHeader}>
 
-        <Text
-          style={styles.chartTitle}
-        >
-          Daily energy
-        </Text>
+        <View>
 
-        <Text
-          style={styles.chartSubtitle}
-        >
-          Current week
-        </Text>
+          <Text style={styles.graphTitle}>
+            Energy trend
+          </Text>
+
+          <Text style={styles.graphSubtitle}>
+            Daily consumed vs burned
+          </Text>
+
+        </View>
+
+        <View style={styles.legend}>
+
+          <View style={styles.legendItem}>
+
+            <View
+              style={[
+                styles.legendLine,
+                {
+                  backgroundColor:
+                    GREEN,
+                },
+              ]}
+            />
+
+            <Text style={styles.legendText}>
+              Consumed
+            </Text>
+
+          </View>
+
+          <View style={styles.legendItem}>
+
+            <View
+              style={[
+                styles.legendLine,
+                {
+                  backgroundColor:
+                    ORANGE,
+                },
+              ]}
+            />
+
+            <Text style={styles.legendText}>
+              Burned
+            </Text>
+
+          </View>
+
+        </View>
 
       </View>
 
       {/* =================================================
-          CHART
+          GRAPH
       ================================================= */}
 
-      <View
-        style={styles.chartWrapper}
-      >
+      <View style={styles.graphContainer}>
 
-        <BarChart
+        <LineChart
           data={{
-            labels: chartData.map(
-              (day, index) =>
-                day.label ||
-                labels[index]
-            ),
+            labels:
+              weekLabels,
 
             datasets: [
               {
                 data:
                   consumedValues,
 
-                color: () =>
-                  GREEN,
+                color: (
+                  opacity = 1
+                ) =>
+                  `rgba(33, 153, 49, ${opacity})`,
+
+                strokeWidth: 3,
               },
 
               {
                 data:
                   burnedValues,
 
-                color: () =>
-                  ORANGE,
+                color: (
+                  opacity = 1
+                ) =>
+                  `rgba(255, 122, 0, ${opacity})`,
+
+                strokeWidth: 3,
               },
             ],
           }}
 
           width={
-            screenWidth - 36
+            screenWidth - 58
           }
 
           height={235}
 
           fromZero
 
-          showValuesOnTopOfBars={false}
+          yAxisInterval={1}
+
+          segments={4}
+
+          bezier
+
+          withDots
+
+          withShadow={false}
 
           withInnerLines
 
-          withVerticalLabels
+          withOuterLines={false}
+
+          withVerticalLines={false}
 
           withHorizontalLabels
+
+          withVerticalLabels
 
           yAxisLabel=""
 
           yAxisSuffix=""
 
-          segments={4}
-
           chartConfig={{
+
             backgroundColor:
-              WHITE,
+              GRAPH_BG,
 
             backgroundGradientFrom:
-              WHITE,
+              GRAPH_BG,
 
             backgroundGradientTo:
-              WHITE,
+              GRAPH_BG,
 
             decimalPlaces: 0,
 
@@ -547,15 +577,26 @@ export default function WeeklyEnergyCard({
             ) =>
               `rgba(123, 129, 124, ${opacity})`,
 
-            barPercentage: 0.38,
+            propsForDots: {
+              r: "4",
+
+              strokeWidth:
+                "2",
+
+              stroke:
+                WHITE,
+            },
 
             propsForBackgroundLines:
               {
                 stroke:
-                  "#E8EDE8",
+                  "#E2E8E2",
 
                 strokeWidth:
                   "1",
+
+                strokeDasharray:
+                  "5 5",
               },
 
             propsForLabels: {
@@ -564,36 +605,25 @@ export default function WeeklyEnergyCard({
               fontWeight:
                 "600",
             },
+
           }}
 
-          style={
-            styles.chart
-          }
+          style={styles.graph}
         />
 
       </View>
 
       {/* =================================================
-          LEGEND
+          FOOTER
       ================================================= */}
 
-      <View
-        style={
-          styles.legendContainer
-        }
-      >
+      <View style={styles.footer}>
 
-        {/* =================================================
-            CONSUMED
-        ================================================= */}
-
-        <View
-          style={styles.legendItem}
-        >
+        <View style={styles.footerStat}>
 
           <View
             style={[
-              styles.legendDot,
+              styles.footerDot,
               {
                 backgroundColor:
                   GREEN,
@@ -601,25 +631,17 @@ export default function WeeklyEnergyCard({
             ]}
           />
 
-          <Text
-            style={styles.legendText}
-          >
+          <Text style={styles.footerText}>
             Consumed
           </Text>
 
         </View>
 
-        {/* =================================================
-            BURNED
-        ================================================= */}
-
-        <View
-          style={styles.legendItem}
-        >
+        <View style={styles.footerStat}>
 
           <View
             style={[
-              styles.legendDot,
+              styles.footerDot,
               {
                 backgroundColor:
                   ORANGE,
@@ -627,23 +649,21 @@ export default function WeeklyEnergyCard({
             ]}
           />
 
-          <Text
-            style={styles.legendText}
-          >
+          <Text style={styles.footerText}>
             Burned
           </Text>
 
         </View>
 
-        {/* =================================================
-            UNIT
-        ================================================= */}
+        <View style={styles.footerRight}>
 
-        <Text
-          style={styles.legendHint}
-        >
-          kcal
-        </Text>
+          <Text style={styles.footerRightText}>
+            {netEnergy >= 0
+              ? "Calorie surplus"
+              : "Calorie deficit"}
+          </Text>
+
+        </View>
 
       </View>
 
@@ -666,7 +686,7 @@ const styles =
       backgroundColor:
         WHITE,
 
-      borderRadius: 22,
+      borderRadius: 24,
 
       borderWidth: 1,
 
@@ -675,22 +695,25 @@ const styles =
 
       marginTop: 18,
 
-      paddingTop: 17,
+      paddingTop: 18,
 
-      paddingBottom: 15,
+      paddingBottom: 16,
 
       overflow: "hidden",
 
-      shadowColor: "#000",
+      shadowColor:
+        "#000",
 
-      shadowOpacity: 0.04,
+      shadowOpacity:
+        0.035,
 
-      shadowRadius: 10,
+      shadowRadius:
+        12,
 
       shadowOffset: {
         width: 0,
 
-        height: 4,
+        height: 5,
       },
 
       elevation: 2,
@@ -701,6 +724,15 @@ const styles =
     // =================================================
 
     header: {
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "space-between",
+
       paddingHorizontal: 17,
     },
 
@@ -713,11 +745,11 @@ const styles =
     },
 
     headerIcon: {
-      width: 42,
+      width: 43,
 
-      height: 42,
+      height: 43,
 
-      borderRadius: 14,
+      borderRadius: 15,
 
       backgroundColor:
         LIGHT_GREEN,
@@ -728,11 +760,11 @@ const styles =
       justifyContent:
         "center",
 
-      marginRight: 10,
+      marginRight: 11,
     },
 
     title: {
-      fontSize: 16,
+      fontSize: 17,
 
       fontWeight: "800",
 
@@ -740,11 +772,38 @@ const styles =
     },
 
     subtitle: {
-      fontSize: 11,
+      fontSize: 10.5,
 
       color: MUTED,
 
-      marginTop: 3,
+      marginTop: 4,
+    },
+
+    daysBadge: {
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      backgroundColor:
+        LIGHT_GREEN,
+
+      borderRadius: 18,
+
+      paddingHorizontal: 9,
+
+      paddingVertical: 6,
+    },
+
+    daysBadgeText: {
+      fontSize: 9,
+
+      fontWeight: "700",
+
+      color: DARK_GREEN,
+
+      marginLeft: 4,
     },
 
     // =================================================
@@ -759,36 +818,36 @@ const styles =
 
       paddingHorizontal: 17,
 
-      marginTop: 15,
+      marginTop: 16,
     },
 
-    summaryBox: {
+    summaryCard: {
       flex: 1,
 
-      borderRadius: 17,
+      borderRadius: 18,
 
-      padding: 12,
+      padding: 13,
 
       borderWidth: 1,
     },
 
-    consumedBox: {
+    consumedCard: {
       backgroundColor:
-        "#F6FBF7",
+        "#F7FBF7",
 
       borderColor:
-        "#DDEBDF",
+        "#DDEADE",
     },
 
-    burnedBox: {
+    burnedCard: {
       backgroundColor:
         "#FFF9F4",
 
       borderColor:
-        "#F3E1D2",
+        "#F2E0D1",
     },
 
-    summaryTop: {
+    summaryHeader: {
       flexDirection:
         "row",
 
@@ -796,12 +855,15 @@ const styles =
         "center",
     },
 
-    summaryIcon: {
+    greenIcon: {
       width: 28,
 
       height: 28,
 
       borderRadius: 9,
+
+      backgroundColor:
+        LIGHT_GREEN,
 
       alignItems:
         "center",
@@ -812,14 +874,23 @@ const styles =
       marginRight: 7,
     },
 
-    consumedIcon: {
-      backgroundColor:
-        LIGHT_GREEN,
-    },
+    orangeIcon: {
+      width: 28,
 
-    burnedIcon: {
+      height: 28,
+
+      borderRadius: 9,
+
       backgroundColor:
         LIGHT_ORANGE,
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      marginRight: 7,
     },
 
     summaryLabel: {
@@ -837,13 +908,13 @@ const styles =
       alignItems:
         "baseline",
 
-      marginTop: 7,
+      marginTop: 8,
     },
 
-    summaryValue: {
-      fontSize: 19,
+    value: {
+      fontSize: 20,
 
-      fontWeight: "800",
+      fontWeight: "900",
 
       color: TEXT,
     },
@@ -855,7 +926,7 @@ const styles =
 
       color: MUTED,
 
-      marginLeft: 3,
+      marginLeft: 4,
     },
 
     average: {
@@ -863,23 +934,23 @@ const styles =
 
       color: MUTED,
 
-      marginTop: 3,
+      marginTop: 4,
     },
 
     // =================================================
-    // NET ENERGY
+    // NET
     // =================================================
 
-    netEnergyCard: {
+    netCard: {
       marginHorizontal: 17,
 
-      marginTop: 10,
+      marginTop: 11,
 
-      paddingHorizontal: 12,
+      paddingHorizontal: 13,
 
-      paddingVertical: 11,
+      paddingVertical: 12,
 
-      borderRadius: 17,
+      borderRadius: 18,
 
       backgroundColor:
         "#FAFBFA",
@@ -908,14 +979,11 @@ const styles =
     },
 
     netIcon: {
-      width: 32,
+      width: 34,
 
-      height: 32,
+      height: 34,
 
-      borderRadius: 10,
-
-      backgroundColor:
-        LIGHT_GREEN,
+      borderRadius: 11,
 
       alignItems:
         "center",
@@ -939,16 +1007,16 @@ const styles =
 
       color: MUTED,
 
-      marginTop: 2,
+      marginTop: 3,
     },
 
-    netValueContainer: {
+    netRight: {
       alignItems:
         "flex-end",
     },
 
     netValue: {
-      fontSize: 18,
+      fontSize: 19,
 
       fontWeight: "900",
     },
@@ -962,27 +1030,27 @@ const styles =
     },
 
     // =================================================
-    // CHART HEADER
+    // GRAPH HEADER
     // =================================================
 
-    chartHeader: {
-      paddingHorizontal: 17,
-
-      marginTop: 18,
-
-      marginBottom: 2,
-
+    graphHeader: {
       flexDirection:
         "row",
 
       alignItems:
-        "baseline",
+        "flex-end",
 
       justifyContent:
         "space-between",
+
+      paddingHorizontal: 17,
+
+      marginTop: 20,
+
+      marginBottom: 8,
     },
 
-    chartTitle: {
+    graphTitle: {
       fontSize: 13,
 
       fontWeight: "800",
@@ -990,35 +1058,83 @@ const styles =
       color: TEXT,
     },
 
-    chartSubtitle: {
+    graphSubtitle: {
       fontSize: 9,
+
+      color: MUTED,
+
+      marginTop: 3,
+    },
+
+    legend: {
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      gap: 10,
+    },
+
+    legendItem: {
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+    },
+
+    legendLine: {
+      width: 14,
+
+      height: 3,
+
+      borderRadius: 2,
+
+      marginRight: 4,
+    },
+
+    legendText: {
+      fontSize: 8,
+
+      fontWeight: "600",
 
       color: MUTED,
     },
 
     // =================================================
-    // CHART
+    // GRAPH
     // =================================================
 
-    chartWrapper: {
-      marginTop: 4,
+    graphContainer: {
+      marginHorizontal: 11,
 
-      marginLeft: -8,
+      borderRadius: 19,
 
-      marginRight: -8,
+      backgroundColor:
+        GRAPH_BG,
+
+      borderWidth: 1,
+
+      borderColor:
+        "#EDF1ED",
 
       overflow: "hidden",
+
+      paddingTop: 4,
+
+      paddingBottom: 4,
     },
 
-    chart: {
-      borderRadius: 18,
+    graph: {
+      borderRadius: 19,
     },
 
     // =================================================
-    // LEGEND
+    // FOOTER
     // =================================================
 
-    legendContainer: {
+    footer: {
       flexDirection:
         "row",
 
@@ -1027,10 +1143,10 @@ const styles =
 
       paddingHorizontal: 17,
 
-      marginTop: -2,
+      marginTop: 10,
     },
 
-    legendItem: {
+    footerStat: {
       flexDirection:
         "row",
 
@@ -1040,30 +1156,34 @@ const styles =
       marginRight: 17,
     },
 
-    legendDot: {
-      width: 8,
+    footerDot: {
+      width: 7,
 
-      height: 8,
+      height: 7,
 
       borderRadius: 4,
 
-      marginRight: 6,
+      marginRight: 5,
     },
 
-    legendText: {
-      fontSize: 10,
-
-      color: MUTED,
-
-      fontWeight: "600",
-    },
-
-    legendHint: {
-      marginLeft:
-        "auto",
-
+    footerText: {
       fontSize: 9,
 
+      fontWeight: "600",
+
       color: MUTED,
+    },
+
+    footerRight: {
+      marginLeft:
+        "auto",
+    },
+
+    footerRightText: {
+      fontSize: 9,
+
+      fontWeight: "700",
+
+      color: DARK_GREEN,
     },
   });
