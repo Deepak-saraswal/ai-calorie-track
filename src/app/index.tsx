@@ -64,11 +64,37 @@ function AuthScreen() {
     setLoading(true);
     try {
       if (mode === "signIn") {
-        if (!signIn || !setActiveSignIn) throw new Error("Authentication is still loading. Please try again.");
-        const result = await signIn.create({
-          identifier: email.trim(),
-          password,
-        });
+  if (!signIn || !setActiveSignIn) {
+    throw new Error("Authentication is still loading. Please try again.");
+  }
+
+ console.log("========== LOGIN DEBUG ==========");
+
+console.log("Platform:", Platform.OS);
+console.log("Email:", email.trim());
+console.log("Password length:", password.length);
+
+console.log(
+  "Password char codes:",
+  password.split("").map((char) => char.charCodeAt(0))
+);
+
+console.log(
+  "Password JSON:",
+  JSON.stringify(password)
+);
+
+console.log(
+  "Clerk key:",
+  process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
+);
+
+  const result = await signIn.create({
+    identifier: email.trim(),
+    password,
+  });
+
+  console.log("CLERK LOGIN RESULT:", result);
 
         console.log(result);
 
@@ -114,8 +140,19 @@ function AuthScreen() {
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
       setAwaitingVerification(true);
     } catch (error) {
-      Alert.alert("Couldn’t continue", errorMessage(error));
-    } finally {
+  console.log(
+    "========== CLERK LOGIN ERROR =========="
+  );
+
+  console.log(
+    JSON.stringify(error, null, 2)
+  );
+
+  Alert.alert(
+    "Couldn’t continue",
+    errorMessage(error)
+  );
+}finally {
       setLoading(false);
     }
   };
@@ -185,22 +222,27 @@ function AuthScreen() {
   )}
 
   <Field
-    label="Email address"
-    value={email}
-    onChangeText={setEmail}
-    keyboardType="email-address"
-    autoCapitalize="none"
-    placeholder="you@example.com"
-  />
+  label="Email address"
+  value={email}
+  onChangeText={setEmail}
+  keyboardType="email-address"
+  autoCapitalize="none"
+  autoCorrect={false}
+  textContentType="emailAddress"
+  placeholder="you@example.com"
+/>
 
-  <Field
-    label="Password"
-    value={password}
-    onChangeText={setPassword}
-    secureTextEntry
-    placeholder="At least 8 characters"
-  />
-
+<Field
+  label="Password"
+  value={password}
+  onChangeText={setPassword}
+  secureTextEntry={true}
+  autoCapitalize="none"
+  autoCorrect={false}
+  textContentType="password"
+  placeholder="At least 8 characters"
+/>
+  
   <Pressable>
     <Text style={styles.forgot}>Forgot password?</Text>
   </Pressable>
